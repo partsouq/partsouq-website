@@ -3524,12 +3524,12 @@ function renderPDPage(page){
       function sel(label,opts,req,id){var s='<div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">'+label+(req?' <span style="color:#e53e3e">*</span>':'')+'</label><select'+(id?' id="'+id+'"':'')+' style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;cursor:pointer;"><option value="">Select</option>';opts.forEach(function(o){s+='<option>'+o+'</option>';});return s+'</select></div>';}
       h+='<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0;">';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      h+=inp('Part Name','e.g. Front Brake Pad Set GCC',true);
-      h+=inp('OEM / Part Number','e.g. 04465-60250',true);
+      h+=inp('Part Name','e.g. Front Brake Pad Set GCC',true,'al-name');
+      h+=inp('OEM / Part Number','e.g. 04465-60250',true,'al-oem');
       h+='</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      h+=sel('Category',['Brakes','Engine','AC & Cooling','Suspension','Electrical','Filters','Steering','Body Parts','Tyres & Wheels'],true);
-      h+=sel('Condition',['Genuine New','Aftermarket New','Used — Good','Used — Fair'],true);
+      h+=sel('Category',['Brakes','Engine','AC & Cooling','Suspension','Electrical','Filters','Steering','Body Parts','Tyres & Wheels'],true,'al-cat');
+      h+=sel('Condition',['Genuine New','Aftermarket New','Used — Good','Used — Fair'],true,'al-cond');
       h+='</div>';
       function selOrType(label,opts,req,id,ph){
         var listId=(id||label.replace(/\s+/g,''))+'-list';
@@ -3542,23 +3542,23 @@ function renderPDPage(page){
       }
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
       h+=selOrType('Car Brand',['Toyota','Nissan','Honda','Hyundai','Kia','Mitsubishi','Mazda','Suzuki','Chevrolet','Ford','BMW','Mercedes-Benz','Audi','Volkswagen','Land Rover','Range Rover','Lexus','Infiniti','Porsche','Jeep','GMC','Cadillac','Dodge','Chrysler','Peugeot','Renault','MINI','Volvo','Jaguar','Genesis','MG','Changan','Geely','BYD'],true,'lm-add-brand','Select or type your own');
-      h+=inp('Car Model / Car Name','e.g. Land Cruiser LC200',true);
+      h+=inp('Car Model / Car Name','e.g. Land Cruiser LC200',true,'al-model');
       h+='</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      h+=inp('Year Range','e.g. 2015–2022');
-      h+=sel('Car Spec',['GCC Spec','USA Spec','European Spec','Japanese Spec']);
+      h+=inp('Year Range','e.g. 2015–2022',false,'al-year');
+      h+=sel('Car Spec',['GCC Spec','USA Spec','European Spec','Japanese Spec'],false,'al-spec');
       h+='</div>';
       h+='<div class="rfg"><label>Warranty</label><div style="display:flex;gap:10px;"><input type="number" id="lm-add-war-num" placeholder="e.g. 6" min="0" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="lm-add-war-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="">No warranty</option><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months">Month(s)</option><option value="years">Year(s)</option></select></div></div>';
       h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#065f46;font-weight:600;margin-bottom:10px;">&#128196; Mulkiya Match Fields — helps buyer verify using their vehicle registration</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      h+=inp('Chassis No. / Type','e.g. FJA200, VDJ200, Y62');
-      h+=inp('Engine No. / Code','e.g. 1VD-FTV, VK56VD');
+      h+=inp('Chassis No. / Type','e.g. FJA200, VDJ200, Y62',false,'al-chassis');
+      h+=inp('Engine No. / Code','e.g. 1VD-FTV, VK56VD',false,'al-engine');
       h+='</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      h+=inp('Part Serial / Batch No.','e.g. SN-2024-XXXX');
-      h+=inp('Price (AED)','e.g. 220',true,'','number');
+      h+=inp('Part Serial / Batch No.','e.g. SN-2024-XXXX',false,'al-serial');
+      h+=inp('Price (AED)','e.g. 220',true,'al-price','number');
       h+='</div>';
-      h+='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Description</label><textarea rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;font-family:inherit;" placeholder="Part details, brand info, what cars it fits..."></textarea></div>';
+      h+='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Description</label><textarea id="al-desc" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;font-family:inherit;" placeholder="Part details, brand info, what cars it fits..."></textarea></div>';
       h+='<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:9px;padding:11px 14px;font-size:12.5px;color:#991b1b;margin-bottom:14px;"><strong>&#9888; Policy:</strong> Only genuine, functional, good-condition parts. Damaged or misrepresented parts = immediate suspension. Buyers pay cash on receipt — part must match listing exactly.</div>';
       h+='<button id="pm-submit-btn" data-pdpage="submit" style="width:100%;padding:13px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:14px;font-weight:700;border:none;cursor:pointer;">Submit for Review</button>';
       h+='</div>';
@@ -3692,30 +3692,28 @@ function renderPDPage(page){
 
 async function pdSubmitListing(){
   if(!currentUser || !currentUser.id){showToast('Please sign in again to post a listing');return;}
-  var name=($el('pm-name')||{}).value||'';
-  var oem=($el('pm-oem')||{}).value||'';
-  var brand=($el('pm-pbrand')||{}).value||'';
-  var model=($el('pm-pmodel')||{}).value||'';
-  var yearRange=($el('pm-year')||{}).value||'';
-  var spec=($el('pm-spec')||{}).value||'';
-  var engine=($el('pm-engine')||{}).value||'';
-  var chassis=($el('pm-chassis')||{}).value||'';
-  var price=($el('pm-price')||{}).value||'';
-  var delFee=($el('pm-delfee')||{}).value||'0';
-  var delTime=($el('pm-deltime')||{}).value||'';
-  var delType=($el('pm-delivery-type')||{}).value||'included';
-  var warNum=($el('pm-war-num')||{}).value||'';
-  var warUnit=($el('pm-war-unit')||{}).value||'';
+  var name=($el('al-name')||{}).value||'';
+  var oem=($el('al-oem')||{}).value||'';
+  var cat=($el('al-cat')||{}).value||'';
+  var cond=($el('al-cond')||{}).value||'';
+  var brand=($el('lm-add-brand')||{}).value||'';
+  var model=($el('al-model')||{}).value||'';
+  var yearRange=($el('al-year')||{}).value||'';
+  var spec=($el('al-spec')||{}).value||'';
+  var chassis=($el('al-chassis')||{}).value||'';
+  var engine=($el('al-engine')||{}).value||'';
+  var price=($el('al-price')||{}).value||'';
+  var warNum=($el('lm-add-war-num')||{}).value||'';
+  var warUnit=($el('lm-add-war-unit')||{}).value||'';
   if(!name||!oem||!price){showToast('Please fill in at least Part Name, OEM Number, and Price');return;}
   var btn=$el('pm-submit-btn');
   if(btn){btn.disabled=true;btn.textContent='Submitting…';}
   var res=await sb.from('listings').insert({
     seller_id: currentUser.id,
-    name: name, oem: oem,
+    name: name, oem: oem, category: cat, condition: cond,
     car_brand: brand, car_model: model, year_range: yearRange, car_spec: spec,
-    engine_no: engine, chassis_no: chassis,
-    price: parseFloat(price)||0, delivery_fee: parseFloat(delFee)||0,
-    delivery_included: delType==='included', delivery_time: delTime,
+    chassis_no: chassis, engine_no: engine,
+    price: parseFloat(price)||0,
     warranty_value: warNum?parseInt(warNum):null, warranty_unit: warUnit||null,
     status: 'pending'
   });
