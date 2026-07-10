@@ -4749,6 +4749,40 @@ async function realSignIn(){
   loginSuccess(currentUser); closeAuth();
 }
 /* Restores a real logged-in session on page load, so refreshing doesn't sign you out */
+async function realPartnerSignUp(){
+  var name=($el('rp-name')||{}).value||'';
+  var email=($el('rp-email')||{}).value||'';
+  var pw=($el('rp-pw')||{}).value||'';
+  if(!name||!email||!pw){showToast('Please fill in all fields');return;}
+  if(pw.length<6){showToast('Password must be at least 6 characters');return;}
+  showToast('Creating your account...');
+  var res=await sb.auth.signUp({email:email,password:pw});
+  if(res.error){showToast(res.error.message);return;}
+  var userId=res.data.user.id;
+  var role=partnerType==='garage'?'garage':'seller';
+  var newPartsouqId=(role==='seller'?'PSS-':'PSG-')+Math.floor(10000+Math.random()*90000);
+  var profileRes=await sb.from('profiles').insert({id:userId,name:name,email:email,role:role,partsouq_id:newPartsouqId,activated:true});
+  if(profileRes.error){showToast('Account created, but profile setup failed: '+profileRes.error.message);return;}
+  currentUser={id:userId,name:name,email:email,role:role,partsouqId:newPartsouqId};
+  showToast('Welcome, '+name+'! Your PartSouq ID is '+newPartsouqId+'.');
+  loginSuccess(currentUser); closeAuth();
+  setTimeout(function(){openPartnerDashboard();},400);
+}
+async function realPartnerSignIn(){
+  var email=($el('rp-email')||{}).value||'';
+  var pw=($el('rp-pw')||{}).value||'';
+  if(!email||!pw){showToast('Please enter email and password');return;}
+  var res=await sb.auth.signInWithPassword({email:email,password:pw});
+  if(res.error){showToast(res.error.message);return;}
+  var userId=res.data.user.id;
+  var profRes=await sb.from('profiles').select('*').eq('id',userId).single();
+  if(profRes.error||!profRes.data){showToast('Signed in, but could not load your profile.');return;}
+  currentUser=profRes.data;
+  currentUser.partsouqId=currentUser.partsouq_id;
+  showToast('Welcome back, '+currentUser.name+'!');
+  loginSuccess(currentUser); closeAuth();
+  setTimeout(function(){openPartnerDashboard();},400);
+}
 async function restoreSupabaseSession(){
   var res=await sb.auth.getSession();
   if(!res.data || !res.data.session) return;
@@ -4756,6 +4790,7 @@ async function restoreSupabaseSession(){
   var profRes=await sb.from('profiles').select('*').eq('id',userId).single();
   if(profRes.data){
     currentUser=profRes.data;
+    if(currentUser.partsouq_id) currentUser.partsouqId=currentUser.partsouq_id;
     loginSuccess(currentUser);
   }
 }
@@ -4774,6 +4809,8 @@ function attachAuthEvents(container){
     else if(a==='doRegister') doRegister();
     else if(a==='realSignUp') realSignUp();
     else if(a==='realSignIn') realSignIn();
+    else if(a==='realPartnerSignUp') realPartnerSignUp();
+    else if(a==='realPartnerSignIn') realPartnerSignIn();
     else if(a==='go-register'){authMode='register';renderBuyerPortal();}
     else if(a==='go-login'){authMode='login';renderBuyerPortal();}
     else if(a==='pt-seller'){partnerType='seller';renderPartnerPortal();}
@@ -4809,6 +4846,14 @@ function renderPartnerPortal(){
     h+='<div style="text-align:center;font-size:13px;color:#888;margin-top:14px;">Not a partner yet? <span data-action="go-apply" style="color:var(--g);font-weight:700;cursor:pointer;">Apply to become a partner</span></div>';
     h+='<div style="background:#fff8e6;border-radius:8px;padding:10px 12px;font-size:12px;color:#7a4f00;margin-top:12px;">';
     h+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:5px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg></span>Partner accounts are created by PartSouq after your application is approved.</div>';
+    h+='<div style="border-top:1px dashed #e2e8f0;margin-top:18px;padding-top:16px;">';
+    h+='<div style="font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Testing the real backend</div>';
+    h+='<input class="auth-inp" id="rp-name" type="text" placeholder="Full name" autocomplete="name">';
+    h+='<input class="auth-inp" id="rp-email" type="email" placeholder="Email address" autocomplete="email">';
+    h+='<input class="auth-inp" id="rp-pw" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password">';
+    h+='<button class="auth-btn" data-action="realPartnerSignUp" style="background:#0f172a;">Create Real '+(partnerType==='garage'?'Garage':'Seller')+' Account</button>';
+    h+='<button class="auth-btn" data-action="realPartnerSignIn" style="background:#fff;color:#0f172a;border:1.5px solid #e2e8f0;margin-top:8px;">Sign In (already created)</button>';
+    h+='</div>';
     h+='</div>';
     h+='<div id="partner-2fa-step" style="display:none;">';
     h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;font-size:13px;color:#1e3a8a;margin-bottom:16px;line-height:1.6;">';
