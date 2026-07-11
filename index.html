@@ -2678,7 +2678,7 @@ function renderP(prods){
     var sv=Math.round((1-p.price/p.was)*100);
     var wl=wish[p.id];
     out+='<div class="pcard">';
-    out+='<div class="pci"><div class="pcib" style="background-image:url('+JSON.stringify(p.img)+');"></div>';
+    out+="<div class=\"pci\"><div class=\"pcib\" style=\"background-image:url('"+p.img+"');\"></div>";
     out+='<div class="pcard-bgs"><span class="badge b-s">-'+sv+'%</span>';
     if(p.ver) out+='<span class="badge b-v">&#10003; Verified</span>';
     if(p.isNew) out+='<span class="badge b-n">NEW</span>';
@@ -3934,7 +3934,7 @@ function renderCarouselSlide(idx){
   if(!container || !_carouselSlides[idx]) return;
   _carouselIdx = idx;
   var s = _carouselSlides[idx];
-  var bg = s.image_url ? 'background-image:url('+JSON.stringify(s.image_url)+');background-size:cover;background-position:center;' : 'background:linear-gradient(135deg,#052e1f 0%,#0a0f1e 100%);';
+  var bg = s.image_url ? "background-image:url('"+s.image_url+"');background-size:cover;background-position:center;" : 'background:linear-gradient(135deg,#052e1f 0%,#0a0f1e 100%);';
   var h = '<div style="position:absolute;inset:0;'+bg+'display:flex;align-items:center;padding:0 40px;transition:opacity .4s;">';
   h += '<div style="max-width:520px;">';
   h += '<div style="font-size:22px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:8px;">'+esc(s.title)+'</div>';
@@ -4567,7 +4567,7 @@ function renderDiscounts(){
   h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" id="banner-grid">';
   bannersList.forEach(function(b,i){
     var bgStyle = b.image
-      ? 'background-image:url('+JSON.stringify(b.image)+');background-size:cover;background-position:center;'
+      ? "background-image:url('"+b.image+"');background-size:cover;background-position:center;"
       : 'background:linear-gradient(135deg,'+b.color1+','+b.color2+');';
     h+='<div class="card" style="padding:0;overflow:hidden;">'
       +'<div style="height:100px;'+bgStyle+'border-radius:10px 10px 0 0;position:relative;display:flex;align-items:center;justify-content:center;">'
@@ -6473,7 +6473,7 @@ function renderDiscounts(){
   h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" id="banner-grid">';
   bannersList.forEach(function(b,i){
     var bgStyle = b.image
-      ? 'background-image:url('+JSON.stringify(b.image)+');background-size:cover;background-position:center;'
+      ? "background-image:url('"+b.image+"');background-size:cover;background-position:center;"
       : 'background:linear-gradient(135deg,'+b.color1+','+b.color2+');';
     h+='<div class="card" style="padding:0;overflow:hidden;">'
       +'<div style="height:100px;'+bgStyle+'border-radius:10px 10px 0 0;position:relative;display:flex;align-items:center;justify-content:center;">'
