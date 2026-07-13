@@ -5106,7 +5106,11 @@ async function realPartnerSignIn(){
   if(res.error){showToast(res.error.message);return;}
   var userId=res.data.user.id;
   var profRes=await sb.from('profiles').select('*').eq('id',userId).single();
-  if(profRes.error||!profRes.data){showToast('Signed in, but could not load your profile.');return;}
+  if(profRes.error){
+    await new Promise(function(r){setTimeout(r,600);});
+    profRes=await sb.from('profiles').select('*').eq('id',userId).single();
+  }
+  if(profRes.error||!profRes.data){showToast('Could not load profile: '+(profRes.error?profRes.error.message:'no profile found'));return;}
   var user=profRes.data;
   user.partsouqId=user.partsouq_id;
   // Password alone isn't enough — hold here and require the Verification
@@ -5406,10 +5410,20 @@ async function doAdminLogin(){
   var pw=($el('li-pw')||{}).value||'';
   if(!email||!pw){showToast('Please enter credentials');return;}
   var res=await sb.auth.signInWithPassword({email:email,password:pw});
-  if(res.error){showToast('Access denied. Admin credentials required.');return;}
+  if(res.error){showToast('Access denied: '+res.error.message);return;}
   var userId=res.data.user.id;
+  // Retry once after a brief pause — guards against any session-propagation delay
   var profRes=await sb.from('profiles').select('*').eq('id',userId).single();
-  if(profRes.error || !profRes.data || profRes.data.role!=='admin'){
+  if(profRes.error){
+    await new Promise(function(r){setTimeout(r,600);});
+    profRes=await sb.from('profiles').select('*').eq('id',userId).single();
+  }
+  if(profRes.error){
+    await sb.auth.signOut();
+    showToast('Could not load profile: '+profRes.error.message);
+    return;
+  }
+  if(!profRes.data || profRes.data.role!=='admin'){
     await sb.auth.signOut();
     showToast('Access denied. This account is not an admin.');
     return;
