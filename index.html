@@ -2351,6 +2351,13 @@ button .ico{vertical-align:middle;margin-right:4px;}
   </div>
 </div>
 
+<div class="modal-bg" id="partner-statement-modal" onclick="if(event.target===this)closeGenericModal('partner-statement-modal')">
+  <div class="modal" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-hdr"><h3 id="ps-modal-title">Payment Statement</h3><button onclick="closeGenericModal('partner-statement-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
+    <div class="modal-body" style="overflow-y:auto;" id="ps-modal-body">Loading…</div>
+  </div>
+</div>
+
 <div class="modal-bg" id="policies-modal" onclick="if(event.target===this)closeGenericModal('policies-modal')">
   <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
     <div class="modal-hdr"><h3>Returns &amp; Policies</h3><button onclick="closeGenericModal('policies-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
@@ -3261,8 +3268,8 @@ function renderPDNav(){
   var nav=$el('pd-nav'); if(!nav)return;
   var isSeller=currentUser&&currentUser.role==='seller';
   var pages=isSeller
-    ? [['dashboard','Dashboard','fas fa-tachometer-alt'],['listings','My Listings','fas fa-boxes'],['add','Add Listing','fas fa-plus-circle'],['orders','Orders','fas fa-shopping-bag'],['payouts','Earnings','fas fa-wallet'],['profile','My Profile','fas fa-user-cog']]
-    : [['dashboard','Dashboard','fas fa-tachometer-alt'],['listings','Bookings','fas fa-calendar-check'],['services','My Services','fas fa-wrench'],['orders','Job History','fas fa-tools'],['payouts','Earnings','fas fa-wallet'],['profile','My Profile','fas fa-user-cog']];
+    ? [['dashboard','Dashboard','fas fa-tachometer-alt'],['listings','My Listings','fas fa-boxes'],['add','Add Listing','fas fa-plus-circle'],['orders','Orders','fas fa-shopping-bag'],['payouts','Earnings','fas fa-wallet'],['statement','Payment Statement','fas fa-file-invoice-dollar'],['profile','My Profile','fas fa-user-cog']]
+    : [['dashboard','Dashboard','fas fa-tachometer-alt'],['listings','Bookings','fas fa-calendar-check'],['services','My Services','fas fa-wrench'],['orders','Job History','fas fa-tools'],['payouts','Earnings','fas fa-wallet'],['statement','Payment Statement','fas fa-file-invoice-dollar'],['profile','My Profile','fas fa-user-cog']];
   var h='';
   pages.forEach(function(p){
     var on=pdPage===p[0];
@@ -3334,20 +3341,10 @@ function renderPDPage(page){
       }
     })();
 
-    // Admin-posted partner banners — shows every active banner targeted at this partner's role
-    getActiveBannersFor(currentUser.role).forEach(function(banner){
-      var bbg=banner.image?"background-image:url('"+banner.image+"');background-size:cover;background-position:center;":'background:linear-gradient(135deg,#052e1f 0%,#0a0f1e 100%);';
-      h+='<div style="'+bbg+'border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid rgba(0,196,122,.3);position:relative;">';
-      if(banner.image) h+='<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);border-radius:12px;"></div>';
-      if(banner.tag){
-        h+='<span style="position:relative;background:rgba(0,196,122,.15);color:#00c47a;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:20px;flex-shrink:0;">'+esc(banner.tag)+'</span>';
-      }
-      h+='<div style="position:relative;flex:1;min-width:200px;">';
-      h+='<div style="font-size:14.5px;font-weight:800;color:#fff;">'+esc(banner.title)+'</div>';
-      if(banner.desc){h+='<div style="font-size:12.5px;color:rgba(255,255,255,.6);margin-top:2px;">'+esc(banner.desc)+'</div>';}
-      h+='</div>';
-      h+='</div>';
-    });
+    // Admin-posted partner banners — real, loaded from Supabase just below
+    h+='<div id="partner-banners-container"></div>';
+    setTimeout(loadPartnerBannersForDashboard, 0);
+
 
     if(isSeller){
       h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">';
@@ -3646,6 +3643,12 @@ function renderPDPage(page){
     h+='</ul></div>';
 
   /* ─── PROFILE ─── */
+  /* ─── PAYMENT STATEMENT (real, like a bank statement) ─── */
+  } else if(page==='statement'){
+    h+='<h3 style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:16px;">Payment Statement</h3>';
+    h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">A running record of every payment PartSouq has confirmed receiving from you \u2014 like a bank statement.</div>';
+    h+='<div id="statement-list" style="text-align:center;color:#888;padding:24px;">Loading your statement…</div>';
+    setTimeout(loadPaymentStatement, 0);
   } else if(page==='profile'){
     h+='<h3 style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:16px;">My Profile</h3>';
     h+='<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0;">';
@@ -3692,7 +3695,7 @@ function renderPDPage(page){
     var d=e.target.closest('[data-pdpage]');
     if(!d) return;
     var pg=d.getAttribute('data-pdpage');
-    if(['dashboard','listings','services','add','orders','payouts','profile'].indexOf(pg)>-1) renderPDPage(pg);
+    if(['dashboard','listings','services','add','orders','payouts','statement','profile'].indexOf(pg)>-1) renderPDPage(pg);
     else if(pg==='submit') pdSubmitListing();
     else if(pg==='save-profile') savePartnerProfile();
   };
@@ -3776,6 +3779,36 @@ async function updateOrderStatusReal(id,newStatus){
   if(res.error){showToast('Could not update: '+res.error.message);return;}
   showToast('Order updated');
   loadSellerOrders();
+}
+
+/* ══ PAYMENT STATEMENT (seller/garage view) ══ */
+async function loadPaymentStatement(){
+  var el=$el('statement-list'); if(!el || !currentUser || !currentUser.id) return;
+  var res=await sb.from('payment_records').select('*').eq('partner_id',currentUser.id).order('created_at',{ascending:false});
+  var records=(res.data)||[];
+  if(records.length===0){
+    el.innerHTML='<div style="text-align:center;color:#888;padding:24px;">No payments recorded yet.</div>';
+    return;
+  }
+  var total=records.reduce(function(sum,r){return sum+parseFloat(r.amount);},0);
+  var h='<div style="background:#0f172a;border-radius:12px;padding:18px 20px;margin-bottom:18px;color:#fff;">';
+  h+='<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Total Paid to Date</div>';
+  h+='<div style="font-size:26px;font-weight:800;">AED '+total.toLocaleString()+'</div>';
+  h+='</div>';
+  h+='<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">';
+  records.forEach(function(r,i){
+    var dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    var periodStr = (r.period_start && r.period_end) ? (new Date(r.period_start).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' \u2013 '+new Date(r.period_end).toLocaleDateString('en-GB',{day:'numeric',month:'short'})) : '';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;'+(i<records.length-1?'border-bottom:1px solid #f1f5f9;':'')+'">';
+    h+='<div style="display:flex;align-items:center;gap:12px;">';
+    h+='<div style="width:38px;height:38px;border-radius:50%;background:#e6faf3;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span class="ico" style="color:#00a064;width:1em;height:1em;display:inline-flex;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span></div>';
+    h+='<div><div style="font-size:13.5px;font-weight:700;color:#0f172a;">Payment Confirmed'+(periodStr?' — '+esc(periodStr):'')+'</div><div style="font-size:12px;color:#888;">'+dateStr+(r.note?' \u2014 '+esc(r.note):'')+'</div></div>';
+    h+='</div>';
+    h+='<div style="font-size:14.5px;font-weight:800;color:#00a064;">+AED '+parseFloat(r.amount).toLocaleString()+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
 }
 
 /* ══ GARAGE SERVICES ══ */
@@ -5938,20 +5971,25 @@ async function deleteHeroBanner(id){
   loadDealBanners();
 }
 
-function renderPartnerBanners(){
-  var h='<div class="sec-hdr"><h2>Partner Banners ('+partnerBanners.length+')</h2><button class="btn btn-g" onclick="openPartnerBannerForm()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Banner</button></div>';
-  h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">Post promotional banners (subscription discounts, referral offers, seasonal deals) for your partners. Each banner can target <strong>Sellers only</strong>, <strong>Garages only</strong>, or <strong>Both</strong> — it shows automatically at the top of the matching Partner Dashboard(s).</div>';
+async function renderPartnerBanners(){
+  var c=$el('content'); if(!c) return;
+  var res=await sb.from('partner_banners').select('*').order('created_at',{ascending:false});
+  var banners=(res.data)||[];
+  window._adminPartnerBanners=banners;
+  var h='<div class="sec-hdr"><h2>Partner Banners ('+banners.length+')</h2><button class="btn btn-g" onclick="openPartnerBannerForm()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Banner</button></div>';
+  h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">Post promotional banners (subscription discounts, referral offers, seasonal deals) for your partners. Each banner can target <strong>Sellers only</strong>, <strong>Garages only</strong>, or <strong>Both</strong> — it shows automatically at the top of the matching Partner Dashboard(s). Saved for real.</div>';
   h+='<div id="pb-form-wrap"></div>';
-  if(partnerBanners.length===0){
+  if(banners.length===0){
     h+='<div class="card" style="padding:40px;text-align:center;color:#888;font-size:13.5px;">No banners yet. Click "Add Banner" to create your first one.</div>';
-    return h;
+    c.innerHTML=h;
+    return;
   }
   h+='<div class="card"><table><thead><tr><th>Audience</th><th>Banner</th><th>Status</th><th>Action</th></tr></thead><tbody>';
-  partnerBanners.forEach(function(b){
+  banners.forEach(function(b){
     var audienceLabel = b.target==='seller'?'Sellers only':b.target==='garage'?'Garages only':'Sellers & Garages';
     var audienceColor = b.target==='seller'?'badge-b':b.target==='garage'?'badge-o':'badge-g';
     h+='<tr><td><span class="badge '+audienceColor+'">'+audienceLabel+'</span></td>';
-    h+='<td><div class="fw7" style="font-size:13.5px;">'+b.title+'</div>'+(b.desc?'<div style="font-size:11.5px;color:#888;">'+b.desc+'</div>':'')+'</td>';
+    h+='<td><div class="fw7" style="font-size:13.5px;">'+esc(b.title)+'</div>'+(b.description?'<div style="font-size:11.5px;color:#888;">'+esc(b.description)+'</div>':'')+'</td>';
     h+='<td>'+(b.active?'<span class="badge badge-g">Live</span>':'<span class="badge" style="background:#f1f5f9;color:#888;">Paused</span>')+'</td>';
     h+='<td><div class="td-actions">'
       +'<button class="btn btn-out btn-sm" onclick="toggleBannerActive(\''+b.id+'\')">'+(b.active?'Pause':'Activate')+'</button>'
@@ -5960,7 +5998,7 @@ function renderPartnerBanners(){
       +'</div></td></tr>';
   });
   h+='</tbody></table></div>';
-  return h;
+  c.innerHTML=h;
 }
 async function pbPhotoSelected(input){
   var file=input.files[0];
@@ -5983,7 +6021,7 @@ async function pbPhotoSelected(input){
 }
 function openPartnerBannerForm(id){
   editingBannerId = id || null;
-  var b = id ? partnerBanners.find(function(x){return x.id===id;}) : null;
+  var b = id ? (window._adminPartnerBanners||[]).find(function(x){return x.id===id;}) : null;
   var wrap = $el('pb-form-wrap');
   if(!wrap) return;
   var h='<div class="card" style="padding:20px;margin-bottom:18px;border:1.5px solid #00c47a;">';
@@ -5993,12 +6031,12 @@ function openPartnerBannerForm(id){
     +'<option value="seller"'+(b&&b.target==='seller'?' selected':'')+'>Sellers only</option>'
     +'<option value="garage"'+(b&&b.target==='garage'?' selected':'')+'>Garages only</option>'
     +'</select></div>';
-  h+='<div class="form-g2"><div class="form-g"><label>Tag / Badge Text</label><input id="pb-tag" oninput="renderBannerPreview()" placeholder="e.g. Limited Time" value="'+(b?b.tag||'':'')+'"></div><div class="form-g"><label>Banner Title *</label><input id="pb-title" oninput="renderBannerPreview()" placeholder="e.g. Renew now and get 15% off" value="'+(b?b.title||'':'')+'"></div></div>';
-  h+='<div class="form-g"><label>Description (optional)</label><input id="pb-desc" oninput="renderBannerPreview()" placeholder="e.g. Valid until 31 July \u2014 contact support to redeem" value="'+(b?b.desc||'':'')+'"></div>';
+  h+='<div class="form-g2"><div class="form-g"><label>Tag / Badge Text</label><input id="pb-tag" oninput="renderBannerPreview()" placeholder="e.g. Limited Time" value="'+(b?esc(b.tag||''):'')+'"></div><div class="form-g"><label>Banner Title *</label><input id="pb-title" oninput="renderBannerPreview()" placeholder="e.g. Renew now and get 15% off" value="'+(b?esc(b.title||''):'')+'"></div></div>';
+  h+='<div class="form-g"><label>Description (optional)</label><input id="pb-desc" oninput="renderBannerPreview()" placeholder="e.g. Valid until 31 July \u2014 contact support to redeem" value="'+(b?esc(b.description||''):'')+'"></div>';
   h+='<div class="form-g" style="margin-top:12px;"><label>Banner Photo (optional)</label>';
   h+='<label class="upload-area" style="position:relative;display:block;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#00c47a;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><div class="upload-area-txt"><strong>Choose Photo</strong> \u2014 uploads automatically</div><input type="file" id="pb-photo-input" accept="image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" onchange="pbPhotoSelected(this)"></label>';
-  h+='<div id="pb-photo-status" style="display:'+(b&&b.image?'flex':'none')+';align-items:center;margin-top:8px;font-size:13px;color:var(--gd);font-weight:600;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo ready</div>';
-  h+='<input type="hidden" id="pb-image" value="'+(b?esc(b.image||''):'')+'">';
+  h+='<div id="pb-photo-status" style="display:'+(b&&b.image_url?'flex':'none')+';align-items:center;margin-top:8px;font-size:13px;color:var(--gd);font-weight:600;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo ready</div>';
+  h+='<input type="hidden" id="pb-image" value="'+(b?esc(b.image_url||''):'')+'">';
   h+='</div>';
   h+='<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:14px 0;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Live Preview</div><div id="pb-preview"></div></div>';
   h+='<button class="btn btn-g" onclick="savePartnerBanner()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> '+(b?'Save Changes':'Publish Banner')+'</button>'
@@ -6033,42 +6071,64 @@ function renderBannerPreview(){
   h+='</div></div>';
   box.innerHTML=h;
 }
-function savePartnerBanner(){
+async function savePartnerBanner(){
   var title=($el('pb-title')||{}).value||'';
   if(!title.trim()){showToast('Please enter a banner title');return;}
-  var target=($el('pb-target')||{}).value||'both';
-  var tag=($el('pb-tag')||{}).value||'';
-  var desc=($el('pb-desc')||{}).value||'';
-  var image=($el('pb-image')||{}).value||'';
+  var payload={
+    target: ($el('pb-target')||{}).value||'both',
+    tag: ($el('pb-tag')||{}).value||'',
+    title: title,
+    description: ($el('pb-desc')||{}).value||'',
+    image_url: ($el('pb-image')||{}).value||''
+  };
+  var res;
   if(editingBannerId){
-    var b=partnerBanners.find(function(x){return x.id===editingBannerId;});
-    if(b){ b.target=target; b.tag=tag; b.title=title; b.desc=desc; b.image=image; }
-    showToast('Banner updated');
+    res=await sb.from('partner_banners').update(payload).eq('id',editingBannerId);
   } else {
-    partnerBanners.unshift({id:'PB-'+Math.floor(1000+Math.random()*9000), target:target, tag:tag, title:title, desc:desc, image:image, active:true});
-    showToast('Banner published to '+(target==='both'?'sellers and garages':target+'s'));
+    payload.active=true;
+    res=await sb.from('partner_banners').insert(payload);
   }
+  if(res.error){showToast('Could not save: '+res.error.message);return;}
+  showToast(editingBannerId?'Banner updated':'Banner published to '+(payload.target==='both'?'sellers and garages':payload.target+'s'));
   closePartnerBannerForm();
-  renderPage('partnerbanners');
+  renderPartnerBanners();
 }
-function toggleBannerActive(id){
-  var b=partnerBanners.find(function(x){return x.id===id;});
+async function toggleBannerActive(id){
+  var b=(window._adminPartnerBanners||[]).find(function(x){return x.id===id;});
   if(!b) return;
-  b.active=!b.active;
-  showToast(b.active?'Banner is now live':'Banner paused');
-  renderPage('partnerbanners');
+  var res=await sb.from('partner_banners').update({active:!b.active}).eq('id',id);
+  if(res.error){showToast('Could not update: '+res.error.message);return;}
+  showToast(!b.active?'Banner is now live':'Banner paused');
+  renderPartnerBanners();
 }
-function deletePartnerBanner(id){
-  var idx=partnerBanners.findIndex(function(x){return x.id===id;});
-  if(idx===-1) return;
+async function deletePartnerBanner(id){
   if(!confirm('Delete this banner? This cannot be undone.')) return;
-  partnerBanners.splice(idx,1);
+  var res=await sb.from('partner_banners').delete().eq('id',id);
+  if(res.error){showToast('Could not delete: '+res.error.message);return;}
   showToast('Banner deleted');
-  renderPage('partnerbanners');
+  renderPartnerBanners();
 }
 /* Returns the currently active banners relevant to a given partner role */
-function getActiveBannersFor(role){
-  return partnerBanners.filter(function(b){return b.active && (b.target==='both' || b.target===role);});
+async function loadPartnerBannersForDashboard(){
+  var container=$el('partner-banners-container');
+  if(!container || !currentUser) return;
+  var res=await sb.from('partner_banners').select('*').eq('active',true).order('created_at',{ascending:false});
+  var banners=(res.data||[]).filter(function(b){return b.target==='both' || b.target===currentUser.role;});
+  var h='';
+  banners.forEach(function(banner){
+    var bbg=banner.image_url?"background-image:url('"+banner.image_url+"');background-size:cover;background-position:center;":'background:linear-gradient(135deg,#052e1f 0%,#0a0f1e 100%);';
+    h+='<div style="'+bbg+'border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid rgba(0,196,122,.3);position:relative;">';
+    if(banner.image_url) h+='<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);border-radius:12px;"></div>';
+    if(banner.tag){
+      h+='<span style="position:relative;background:rgba(0,196,122,.15);color:#00c47a;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:20px;flex-shrink:0;">'+esc(banner.tag)+'</span>';
+    }
+    h+='<div style="position:relative;flex:1;min-width:200px;">';
+    h+='<div style="font-size:14.5px;font-weight:800;color:#fff;">'+esc(banner.title)+'</div>';
+    if(banner.description){h+='<div style="font-size:12.5px;color:rgba(255,255,255,.6);margin-top:2px;">'+esc(banner.description)+'</div>';}
+    h+='</div>';
+    h+='</div>';
+  });
+  container.innerHTML=h;
 }
 function createAdminAccount(){
   var name = ($el('new-admin-name')||{}).value||'';
@@ -6367,7 +6427,7 @@ function renderPage(page){
   else if(page==='discounts') c.innerHTML=renderDiscounts();
   else if(page==='support') c.innerHTML=renderSupport();
   else if(page==='partrequests') c.innerHTML=renderPartRequests();
-  else if(page==='partnerbanners'){ c.innerHTML=renderPartnerBanners(); }
+  else if(page==='partnerbanners'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderPartnerBanners(); }
   else if(page==='herobanners'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderHeroBanners(); }
   else if(page==='contactsubs'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderContactSubs(); }
   else if(page==='catimages'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderCategoryImages(); }
@@ -6966,6 +7026,7 @@ async function renderSellers(){
     var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left' : Math.abs(bill.daysRemaining)+' days overdue') : 'No cycle set';
     h+='<tr><td class="fw7">'+esc(s.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(s.partsouq_id||'—')+'</td><td style="font-size:12px;">'+esc(s.email)+'</td><td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td><td>'+(s.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td><td><div class="td-actions">'
       +'<button class="btn btn-g btn-sm" onclick="markPaymentReceivedReal(\''+s.id+'\',\'sellers\')">Payment Received</button>'
+      +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+s.id+'\',\''+esc(s.name)+'\')" style="margin-left:6px;">View Statement</button>'
       +(s.manual_blocked
         ? '<button class="btn btn-out btn-sm" onclick="unblockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Unblock</button>'
         : '<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Block</button>')
@@ -6987,11 +7048,46 @@ async function unblockPartnerReal(id,page){
   if(page==='garages') renderGarages(); else renderSellers();
 }
 async function markPaymentReceivedReal(id,page){
-  if(!confirm('Confirm payment received? This resets their billing cycle to start from today.')) return;
+  var amountStr=prompt('Amount received (AED)?');
+  if(amountStr===null) return;
+  var amount=parseFloat(amountStr);
+  if(isNaN(amount)||amount<=0){showToast('Please enter a valid amount');return;}
+  var periodStart=new Date().toISOString().slice(0,10);
+  var cycleDays=page==='garages'?7:30;
+  var periodEnd=new Date(Date.now()+cycleDays*86400000).toISOString().slice(0,10);
+  var recRes=await sb.from('payment_records').insert({
+    partner_id:id, amount:amount, period_start:periodStart, period_end:periodEnd,
+    recorded_by:(currentUser?currentUser.id:null)
+  });
+  if(recRes.error){showToast('Could not record payment: '+recRes.error.message);return;}
   var res=await sb.from('profiles').update({cycle_start:new Date().toISOString(), manual_blocked:false}).eq('id',id);
-  if(res.error){showToast('Could not update: '+res.error.message);return;}
-  showToast('Payment recorded — billing cycle reset');
+  if(res.error){showToast('Payment recorded, but could not reset cycle: '+res.error.message);return;}
+  showToast('Payment of AED '+amount+' recorded — billing cycle reset');
   if(page==='garages') renderGarages(); else renderSellers();
+}
+async function viewPartnerStatement(id,name){
+  openGenericModal('partner-statement-modal');
+  $safe('ps-modal-title',function(e){e.textContent="Payment Statement — "+name;});
+  var body=$el('ps-modal-body');
+  if(body) body.innerHTML='Loading…';
+  var res=await sb.from('payment_records').select('*').eq('partner_id',id).order('created_at',{ascending:false});
+  var records=(res.data)||[];
+  if(records.length===0){
+    if(body) body.innerHTML='<div style="text-align:center;color:#888;padding:24px;">No payments recorded yet for this partner.</div>';
+    return;
+  }
+  var total=records.reduce(function(sum,r){return sum+parseFloat(r.amount);},0);
+  var h='<div style="background:#0f172a;border-radius:12px;padding:16px 18px;margin-bottom:16px;color:#fff;">';
+  h+='<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Total Received</div>';
+  h+='<div style="font-size:22px;font-weight:800;">AED '+total.toLocaleString()+'</div></div>';
+  records.forEach(function(r,i){
+    var dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    h+='<div style="display:flex;justify-content:space-between;padding:10px 0;'+(i<records.length-1?'border-bottom:1px solid #f1f5f9;':'')+'">';
+    h+='<div style="font-size:13px;color:#374151;">'+dateStr+'</div>';
+    h+='<div style="font-size:13.5px;font-weight:800;color:#00a064;">AED '+parseFloat(r.amount).toLocaleString()+'</div>';
+    h+='</div>';
+  });
+  if(body) body.innerHTML=h;
 }
 
 async function renderGarages(){
@@ -7006,6 +7102,7 @@ async function renderGarages(){
     var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left' : Math.abs(bill.daysRemaining)+' days overdue') : 'No cycle set';
     h+='<tr><td class="fw7">'+esc(g.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(g.partsouq_id||'—')+'</td><td style="font-size:12px;">'+esc(g.email)+'</td><td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td><td>'+(g.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td><td><div class="td-actions">'
       +'<button class="btn btn-g btn-sm" onclick="markPaymentReceivedReal(\''+g.id+'\',\'garages\')">Payment Received</button>'
+      +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+g.id+'\',\''+esc(g.name)+'\')" style="margin-left:6px;">View Statement</button>'
       +(g.manual_blocked
         ? '<button class="btn btn-out btn-sm" onclick="unblockPartnerReal(\''+g.id+'\',\'garages\')" style="margin-left:6px;">Unblock</button>'
         : '<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+g.id+'\',\'garages\')" style="margin-left:6px;">Block</button>')
