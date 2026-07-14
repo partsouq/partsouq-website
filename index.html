@@ -2259,15 +2259,17 @@ button .ico{vertical-align:middle;margin-right:4px;}
 
 <!-- ═══ ADMIN PANEL ═══ -->
 <div class="modal-bg" id="plan-limit-modal" onclick="if(event.target===this)closeGenericModal('plan-limit-modal')">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-hdr"><h3>Set Plan &amp; Listing Limit</h3><button onclick="closeGenericModal('plan-limit-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-hdr"><h3>Account &amp; Payment Enrollment</h3><button onclick="closeGenericModal('plan-limit-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
     <div class="modal-body">
       <input type="hidden" id="pl-id">
       <input type="hidden" id="pl-page">
-      <div class="form-g" style="margin-bottom:14px;"><label>Plan</label><select id="pl-plan" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="free">Free</option><option value="basic">Basic</option><option value="mid">Mid</option><option value="max">Max</option></select></div>
+      <div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#065f46;margin-bottom:14px;line-height:1.6;">Enrolling in a paid plan here creates a real payment record for the current billing cycle. Once that period ends, the account automatically reverts to Free \u2014 no need to manually downgrade anyone.</div>
+      <div class="form-g" style="margin-bottom:14px;"><label>Plan (based on amount received)</label><select id="pl-plan" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="free">Free (no payment)</option><option value="basic">Basic</option><option value="mid">Mid</option><option value="max">Max</option></select></div>
+      <div class="form-g" style="margin-bottom:14px;"><label>Amount Received (AED)</label><input type="number" id="pl-amount" min="0" placeholder="e.g. 49" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
       <div class="form-g" style="margin-bottom:6px;"><label>Custom Listing Limit Override</label><select id="pl-override" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="">Use plan default</option></select></div>
-      <div style="font-size:12px;color:#888;margin-bottom:16px;">Choose a specific number to override the plan's default limit for this one partner — e.g. give a Free-tier seller extra listings without changing their whole plan.</div>
-      <button class="btn btn-g" onclick="savePartnerPlanLimit()">Save</button>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">Choose a specific number to override the plan's default limit for this one partner \u2014 e.g. give a Free-tier seller extra listings without changing their whole plan.</div>
+      <button class="btn btn-g" onclick="savePartnerPlanLimit()">Save Enrollment</button>
       <button class="btn btn-out" onclick="closeGenericModal('plan-limit-modal')" style="margin-left:8px;">Cancel</button>
     </div>
   </div>
@@ -3200,18 +3202,34 @@ if(document.readyState==='complete'||document.readyState==='interactive') checkI
 /* ══ REQUEST PART MODAL ══ */
 var partRequests=[]; // buyer part requests, visible to admin/support team
 var _rpPhoto=null, _rpMulkiya=null;
+function rpPartNameSelectChanged(){
+  var sel=$el('rp-partname-select');
+  var desc=$el('rp-desc');
+  if(!sel||!desc) return;
+  if(sel.value==='__other__'){
+    desc.focus();
+  } else if(sel.value){
+    desc.value=sel.value;
+    desc.focus();
+  }
+}
 function openRequestPartModal(){
   var m=$el('request-part-modal'); if(!m) return;
   m.classList.add('open');
   document.body.style.overflow='hidden';
-  $safe('rp-partname-wrap',function(e){e.innerHTML=partNameFieldHtml('rp-partname','');});
+  var sel=$el('rp-partname-select');
+  if(sel && sel.options.length<=2){
+    var otherOpt=sel.querySelector('option[value="__other__"]');
+    var optionsHtml=PART_NAME_OPTIONS.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+    if(otherOpt) otherOpt.insertAdjacentHTML('beforebegin', optionsHtml);
+  }
 }
 function closeRequestPartModal(){
   var m=$el('request-part-modal'); if(!m) return;
   m.classList.remove('open');
   document.body.style.overflow='';
   ['rp-name','rp-wa','rp-year','rp-plate','rp-chassis','rp-desc','rp-brand','rp-model'].forEach(function(id){var e=$el(id); if(e) e.value='';});
-  $safe('rp-partname-wrap',function(e){e.innerHTML='';});
+  $safe('rp-partname-select',function(e){e.value='';});
   var modelList=$el('rp-model-list'); if(modelList) modelList.innerHTML='';
   _rpPhoto=null; _rpMulkiya=null;
   $safe('rp-photo-status',function(e){e.style.display='none';});
@@ -3251,17 +3269,16 @@ async function submitPartRequest(){
   var wa=($el('rp-wa')||{}).value||'';
   var brand=($el('rp-brand')||{}).value||'';
   var model=($el('rp-model')||{}).value||'';
-  var partName=getPartNameValue('rp-partname');
-  var desc=($el('rp-desc')||{}).value||'';
+  var desc=(($el('rp-desc')||{}).value||'').trim();
   if(!name||!wa){showToast('Please enter your name and WhatsApp number');return;}
   if(!brand||!model){showToast('Please select your car brand and model');return;}
-  if(!partName){showToast('Please select or type the part name you need');return;}
+  if(!desc){showToast('Please select or type the part you need');return;}
   if(!_rpMulkiya){showToast('Please upload your Mulkiya — required to match the right part');return;}
   var res=await sb.from('part_requests').insert({
     name:name, whatsapp:wa, car_brand:brand, car_model:model,
     year:($el('rp-year')||{}).value||null,
     chassis_no:($el('rp-chassis')||{}).value||null,
-    part_name:partName, description:desc||null,
+    part_name:desc, description:null,
     part_photo_url:_rpPhoto||null, mulkiya_url:_rpMulkiya,
     status:'new'
   });
@@ -5192,6 +5209,17 @@ var PLAN_LIMITS={
   seller:{free:3, basic:10, mid:25, max:null},
   garage:{free:2, basic:6, mid:6, max:null}
 };
+/* Derives the ACTUAL current plan from the seller/garage's most recent
+   payment enrollment — not a permanent setting. Once that paid period
+   ends, this automatically reads back as 'free', no admin action or
+   scheduled job needed. */
+async function getEffectivePlan(partnerId){
+  var res=await sb.from('payment_records').select('*').eq('partner_id',partnerId).order('period_end',{ascending:false});
+  var records=(res.data)||[];
+  var today=new Date().toISOString().slice(0,10);
+  var current=records.find(function(r){return r.period_end && r.period_end>=today;});
+  return current ? (current.plan||'free') : 'free';
+}
 function getListingLimit(profile){
   if(!profile) return 0;
   if(profile.listing_limit_override!=null) return profile.listing_limit_override;
@@ -7438,23 +7466,24 @@ async function renderSellers(){
   var res=await sb.from('profiles').select('*').eq('role','seller');
   var sellers=(res.data)||[];
   var h='<div class="sec-hdr"><h2>Spare Part Sellers ('+sellers.length+')</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:16px;line-height:1.6;">Click a seller\'s name to view their payment statement. Plan shown reflects their current paid enrollment \u2014 it automatically reverts to Free once that period ends.</div>';
   h+='<div class="card"><table><thead><tr><th>Seller</th><th>PartSouq ID</th><th>Plan</th><th>Listings</th><th>Billing Cycle</th><th>Account Status</th><th>Action</th></tr></thead><tbody>';
   if(sellers.length===0){h+='<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No sellers yet.</td></tr>';}
   for(var i=0;i<sellers.length;i++){
     var s=sellers[i];
-    var bill=getBillingInfo(s);
+    var effectivePlan=await getEffectivePlan(s.id);
+    var sWithPlan=Object.assign({},s,{plan:effectivePlan});
+    var bill=getBillingInfo(sWithPlan);
     var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')') : 'No cycle set';
     var activeCount=await getActiveListingCount(s.id);
-    var limit=getListingLimit(s);
+    var limit=getListingLimit(sWithPlan);
     var limitText = limit==null ? 'Unlimited' : (activeCount+' / '+limit);
-    h+='<tr><td class="fw7">'+esc(s.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(s.partsouq_id||'—')+'</td>';
-    h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(s.plan||'free')+'</span></td>';
+    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="viewPartnerStatement(\''+s.id+'\',\''+esc(s.name)+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(s.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(s.partsouq_id||'—')+'</td>';
+    h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(effectivePlan)+'</span></td>';
     h+='<td style="font-size:12.5px;">'+limitText+'</td>';
     h+='<td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td>';
     h+='<td>'+(s.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td><td><div class="td-actions">'
-      +'<button class="btn btn-g btn-sm" onclick="markPaymentReceivedReal(\''+s.id+'\',\'sellers\')">Payment Received</button>'
-      +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+s.id+'\',\''+esc(s.name)+'\')" style="margin-left:6px;">Statement</button>'
-      +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+s.id+'\',\''+esc(s.plan||'free')+'\',\''+(s.listing_limit_override!=null?s.listing_limit_override:'')+'\',\'sellers\')" style="margin-left:6px;">Plan/Limit</button>'
+      +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+s.id+'\',\''+effectivePlan+'\',\''+(s.listing_limit_override!=null?s.listing_limit_override:'')+'\',\'sellers\')">Plan/Limit</button>'
       +(s.manual_blocked
         ? '<button class="btn btn-out btn-sm" onclick="unblockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Unblock</button>'
         : '<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Block</button>')
@@ -7467,6 +7496,7 @@ function setPartnerPlanReal(id,currentPlan,currentOverride,page){
   $safe('pl-id',function(e){e.value=id;});
   $safe('pl-page',function(e){e.value=page;});
   $safe('pl-plan',function(e){e.value=currentPlan||'free';});
+  $safe('pl-amount',function(e){e.value='';});
   var overrideSel=$el('pl-override');
   if(overrideSel){
     var opts='<option value="">Use plan default</option>';
@@ -7480,11 +7510,35 @@ async function savePartnerPlanLimit(){
   var id=($el('pl-id')||{}).value;
   var page=($el('pl-page')||{}).value;
   var newPlan=($el('pl-plan')||{}).value||'free';
+  var amountStr=($el('pl-amount')||{}).value||'';
   var overrideStr=($el('pl-override')||{}).value||'';
   var override = overrideStr==='' ? null : parseInt(overrideStr);
-  var res=await sb.from('profiles').update({plan:newPlan, listing_limit_override:override}).eq('id',id);
-  if(res.error){showToast('Could not update: '+res.error.message);return;}
-  showToast('Plan updated');
+
+  // Update the listing limit override immediately (this part is a direct, permanent setting)
+  var profRes=await sb.from('profiles').update({listing_limit_override:override}).eq('id',id);
+  if(profRes.error){showToast('Could not update: '+profRes.error.message);return;}
+
+  // If a paid plan with an amount is being enrolled, create a real payment
+  // record for this billing period — this is what actually determines the
+  // seller/garage's plan going forward, and it auto-expires on its own.
+  if(newPlan!=='free'){
+    var amount=parseFloat(amountStr);
+    if(isNaN(amount)||amount<=0){showToast('Please enter the amount received to enroll in a paid plan');return;}
+    var cycleDays=page==='garages'?7:30;
+    var periodStart=new Date().toISOString().slice(0,10);
+    var periodEnd=new Date(Date.now()+cycleDays*86400000).toISOString().slice(0,10);
+    var payRes=await sb.from('payment_records').insert({
+      partner_id:id, amount:amount, plan:newPlan,
+      period_start:periodStart, period_end:periodEnd,
+      recorded_by:(currentUser?currentUser.id:null)
+    });
+    if(payRes.error){showToast('Could not record payment: '+payRes.error.message);return;}
+    var cycleRes=await sb.from('profiles').update({cycle_start:new Date().toISOString(), manual_blocked:false}).eq('id',id);
+    if(cycleRes.error){showToast('Enrolled, but could not reset billing cycle: '+cycleRes.error.message);return;}
+    showToast('Enrolled in '+newPlan+' plan — AED '+amount+' recorded, active until '+periodEnd);
+  } else {
+    showToast('Limit updated');
+  }
   closeGenericModal('plan-limit-modal');
   if(page==='garages') renderGarages(); else renderSellers();
 }
@@ -7500,45 +7554,32 @@ async function unblockPartnerReal(id,page){
   showToast('Partner unblocked');
   if(page==='garages') renderGarages(); else renderSellers();
 }
-async function markPaymentReceivedReal(id,page){
-  var amountStr=prompt('Amount received (AED)?');
-  if(amountStr===null) return;
-  var amount=parseFloat(amountStr);
-  if(isNaN(amount)||amount<=0){showToast('Please enter a valid amount');return;}
-  var periodStart=new Date().toISOString().slice(0,10);
-  var cycleDays=page==='garages'?7:30;
-  var periodEnd=new Date(Date.now()+cycleDays*86400000).toISOString().slice(0,10);
-  var recRes=await sb.from('payment_records').insert({
-    partner_id:id, amount:amount, period_start:periodStart, period_end:periodEnd,
-    recorded_by:(currentUser?currentUser.id:null)
-  });
-  if(recRes.error){showToast('Could not record payment: '+recRes.error.message);return;}
-  var res=await sb.from('profiles').update({cycle_start:new Date().toISOString(), manual_blocked:false}).eq('id',id);
-  if(res.error){showToast('Payment recorded, but could not reset cycle: '+res.error.message);return;}
-  showToast('Payment of AED '+amount+' recorded — billing cycle reset');
-  if(page==='garages') renderGarages(); else renderSellers();
-}
+
 async function renderPaymentStatements(){
   var c=$el('content'); if(!c) return;
   var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
   var partners=(res.data)||[];
   var h='<div class="sec-hdr"><h2>Payment Statements ('+partners.length+')</h2></div>';
-  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">One central place for the accounts team to record payments and review every seller and garage\'s statement \u2014 separate from day-to-day operations management.</div>';
-  h+='<div class="card"><table><thead><tr><th>Partner</th><th>Type</th><th>PartSouq ID</th><th>Billing Cycle</th><th>Account Status</th><th>Action</th></tr></thead><tbody>';
-  if(partners.length===0){h+='<tr><td colspan="6" style="text-align:center;color:#888;padding:24px;">No sellers or garages yet.</td></tr>';}
-  partners.forEach(function(p){
-    var bill=getBillingInfo(p);
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">One central place for the accounts team to enroll partners in a paid plan and review every seller and garage\'s statement \u2014 separate from day-to-day operations management.</div>';
+  h+='<div class="card"><table><thead><tr><th>Partner</th><th>Type</th><th>PartSouq ID</th><th>Plan</th><th>Billing Cycle</th><th>Account Status</th><th>Action</th></tr></thead><tbody>';
+  if(partners.length===0){h+='<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No sellers or garages yet.</td></tr>';}
+  for(var i=0;i<partners.length;i++){
+    var p=partners[i];
+    var effectivePlan=await getEffectivePlan(p.id);
+    var pWithPlan=Object.assign({},p,{plan:effectivePlan});
+    var bill=getBillingInfo(pWithPlan);
     var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')') : 'No cycle set';
     h+='<tr><td class="fw7">'+esc(p.name)+'</td>';
     h+='<td><span class="badge '+(p.role==='seller'?'badge-b':'badge-o')+'">'+(p.role==='seller'?'Seller':'Garage')+'</span></td>';
     h+='<td style="font-family:monospace;font-size:12px;">'+esc(p.partsouq_id||'—')+'</td>';
+    h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(effectivePlan)+'</span></td>';
     h+='<td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td>';
     h+='<td>'+(p.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td>';
     h+='<td><div class="td-actions">'
-      +'<button class="btn btn-g btn-sm" onclick="markPaymentReceivedReal(\''+p.id+'\',\''+(p.role==='garage'?'garages':'sellers')+'\')">Record Payment</button>'
+      +'<button class="btn btn-g btn-sm" onclick="setPartnerPlanReal(\''+p.id+'\',\''+effectivePlan+'\',\''+(p.listing_limit_override!=null?p.listing_limit_override:'')+'\',\''+(p.role==='garage'?'garages':'sellers')+'\')">Enrollment</button>'
       +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+p.id+'\',\''+esc(p.name)+'\')" style="margin-left:6px;">View Statement</button>'
       +'</div></td></tr>';
-  });
+  }
   h+='</tbody></table></div>';
   c.innerHTML=h;
 }
@@ -7595,23 +7636,24 @@ async function renderGarages(){
   var res=await sb.from('profiles').select('*').eq('role','garage');
   var garages=(res.data)||[];
   var h='<div class="sec-hdr"><h2>Garages ('+garages.length+')</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:16px;line-height:1.6;">Click a garage\'s name to view their payment statement. Plan shown reflects their current paid enrollment \u2014 it automatically reverts to Free once that period ends.</div>';
   h+='<div class="card"><table><thead><tr><th>Garage</th><th>PartSouq ID</th><th>Plan</th><th>Services</th><th>Billing Cycle</th><th>Account Status</th><th>Action</th></tr></thead><tbody>';
   if(garages.length===0){h+='<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No garages yet.</td></tr>';}
   for(var i=0;i<garages.length;i++){
     var g=garages[i];
-    var bill=getBillingInfo(g);
+    var effectivePlan=await getEffectivePlan(g.id);
+    var gWithPlan=Object.assign({},g,{plan:effectivePlan});
+    var bill=getBillingInfo(gWithPlan);
     var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')') : 'No cycle set';
     var activeCount=await getActiveServiceCount(g.id);
-    var limit=getListingLimit(g);
+    var limit=getListingLimit(gWithPlan);
     var limitText = limit==null ? 'Unlimited' : (activeCount+' / '+limit);
-    h+='<tr><td class="fw7">'+esc(g.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(g.partsouq_id||'—')+'</td>';
-    h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(g.plan||'free')+'</span></td>';
+    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="viewPartnerStatement(\''+g.id+'\',\''+esc(g.name)+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(g.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(g.partsouq_id||'—')+'</td>';
+    h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(effectivePlan)+'</span></td>';
     h+='<td style="font-size:12.5px;">'+limitText+'</td>';
     h+='<td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td>';
     h+='<td>'+(g.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td><td><div class="td-actions">'
-      +'<button class="btn btn-g btn-sm" onclick="markPaymentReceivedReal(\''+g.id+'\',\'garages\')">Payment Received</button>'
-      +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+g.id+'\',\''+esc(g.name)+'\')" style="margin-left:6px;">Statement</button>'
-      +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+g.id+'\',\''+esc(g.plan||'free')+'\',\''+(g.listing_limit_override!=null?g.listing_limit_override:'')+'\',\'garages\')" style="margin-left:6px;">Plan/Limit</button>'
+      +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+g.id+'\',\''+effectivePlan+'\',\''+(g.listing_limit_override!=null?g.listing_limit_override:'')+'\',\'garages\')">Plan/Limit</button>'
       +(g.manual_blocked
         ? '<button class="btn btn-out btn-sm" onclick="unblockPartnerReal(\''+g.id+'\',\'garages\')" style="margin-left:6px;">Unblock</button>'
         : '<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+g.id+'\',\'garages\')" style="margin-left:6px;">Block</button>')
@@ -7798,28 +7840,4 @@ function switchTab(el,panelId){el.closest('.tab-bar').querySelectorAll('.tab').f
 <div class="garage-modal" id="garage-modal" onclick="if(event.target===this)closeGarage()">
   <div class="garage-box">
     <div class="garage-hero">
-      <div id="garage-hero-img" style="width:100%;height:100%;background-size:cover;background-position:center;"></div>
-      <div class="garage-hero-ov"></div>
-      <div class="garage-hero-bd">
-        <h2 id="garage-name">Garage Name</h2>
-        <p id="garage-loc"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span> Location</p>
-      </div>
-      <button onclick="closeGarage()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.4);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button>
-    </div>
-    <div class="garage-body" id="garage-body"></div>
-  </div>
-</div>
-
-<!-- ═══ REQUEST PART MODAL ═══ -->
-<div class="ck-modal" id="request-part-modal" onclick="if(event.target===this)closeRequestPartModal()">
-  <div class="ck-box" style="max-width:560px;">
-    <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;">
-      <h2 style="font-size:18px;font-weight:800;color:#0f172a;">Request a Part</h2>
-      <button onclick="closeRequestPartModal()" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button>
-    </div>
-    <p style="padding:6px 24px 0;font-size:13px;color:#888;line-height:1.55;">Can't find the part you need? Tell us about your car and the part, and our team will source it and send you a price on WhatsApp.</p>
-    <div style="padding:8px 24px 0;font-size:11.5px;color:#00a064;font-weight:700;display:flex;align-items:center;gap:5px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="19 12 12 19 5 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg></span> Scroll down to see all fields, upload photos, and submit</div>
-
-    <div id="rp-form" style="padding:16px 24px 24px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Full Name <span style="color:#e53e3e;">*</span></label><input id="rp-name" type="text" placeholder="Your name" style="width:100%;padding:10px 12px
+      <div id="garage-h
