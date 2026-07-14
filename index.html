@@ -7840,4 +7840,85 @@ function switchTab(el,panelId){el.closest('.tab-bar').querySelectorAll('.tab').f
 <div class="garage-modal" id="garage-modal" onclick="if(event.target===this)closeGarage()">
   <div class="garage-box">
     <div class="garage-hero">
-      <div id="garage-h
+      <div id="garage-hero-img" style="width:100%;height:100%;background-size:cover;background-position:center;"></div>
+      <div class="garage-hero-ov"></div>
+      <div class="garage-hero-bd">
+        <h2 id="garage-name">Garage Name</h2>
+        <p id="garage-loc"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span> Location</p>
+      </div>
+      <button onclick="closeGarage()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.4);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button>
+    </div>
+    <div class="garage-body" id="garage-body"></div>
+  </div>
+</div>
+
+<!-- ═══ REQUEST PART MODAL ═══ -->
+<div class="ck-modal" id="request-part-modal" onclick="if(event.target===this)closeRequestPartModal()">
+  <div class="ck-box" style="max-width:560px;">
+    <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;">
+      <h2 style="font-size:18px;font-weight:800;color:#0f172a;">Request a Part</h2>
+      <button onclick="closeRequestPartModal()" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button>
+    </div>
+    <p style="padding:6px 24px 0;font-size:13px;color:#888;line-height:1.55;">Can't find the part you need? Tell us about your car and the part, and our team will source it and send you a price on WhatsApp.</p>
+    <div style="padding:8px 24px 0;font-size:11.5px;color:#00a064;font-weight:700;display:flex;align-items:center;gap:5px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="19 12 12 19 5 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg></span> Scroll down to see all fields, upload photos, and submit</div>
+
+    <div id="rp-form" style="padding:16px 24px 24px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Full Name <span style="color:#e53e3e;">*</span></label><input id="rp-name" type="text" placeholder="Your name" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"></div>
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">WhatsApp <span style="color:#e53e3e;">*</span></label><input id="rp-wa" type="tel" placeholder="+971 50 000 0000" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Car Brand <span style="color:#e53e3e;">*</span></label>
+          <input id="rp-brand" list="rp-brand-list" oninput="rpBrand()" placeholder="Select or type your own" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;">
+          <datalist id="rp-brand-list">
+            <option>Toyota</option><option>Nissan</option><option>Honda</option><option>Hyundai</option><option>Kia</option>
+            <option>Mitsubishi</option><option>Mazda</option><option>Suzuki</option><option>Chevrolet</option><option>Ford</option>
+            <option>BMW</option><option>Mercedes-Benz</option><option>Audi</option><option>Volkswagen</option>
+            <option>Land Rover</option><option>Range Rover</option><option>Lexus</option><option>Infiniti</option>
+            <option>Porsche</option><option>Jeep</option><option>GMC</option><option>Cadillac</option><option>Dodge</option>
+            <option>Chrysler</option><option>Peugeot</option><option>Renault</option><option>MINI</option><option>Volvo</option>
+            <option>Jaguar</option><option>Genesis</option><option>MG</option><option>Changan</option><option>Geely</option><option>BYD</option>
+          </datalist>
+        </div>
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Car Model / Car Name <span style="color:#e53e3e;">*</span></label>
+          <input id="rp-model" list="rp-model-list" placeholder="Select brand first, or type your own" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;">
+          <datalist id="rp-model-list"></datalist>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Year</label><input id="rp-year" type="number" min="1990" max="2026" placeholder="e.g. 2020" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"></div>
+        <div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Chassis No. / VIN No.</label><input id="rp-chassis" type="text" placeholder="e.g. JTMHE3FJ8MD…" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Part Name / Description <span style="color:#e53e3e;">*</span></label>
+        <select id="rp-partname-select" onchange="rpPartNameSelectChanged()" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;margin-bottom:8px;">
+          <option value="">Select part name (or choose Other to type your own)</option>
+          <option value="__other__">Other (type manually)</option>
+        </select>
+        <textarea id="rp-desc" rows="3" placeholder="e.g. Front-left headlight assembly, LED type" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;">
+        <label id="rp-photo-label" style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:10px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" width="20" height="20"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><div><div style="font-size:13px;font-weight:600;color:#374151;">Upload part photo</div><div style="font-size:11.5px;color:#9ca3af;">Optional · helps us find it faster</div></div><input type="file" id="rp-photo-input" accept="image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" onchange="rpUpload(this,'rp-photo-label','rp-photo-status','part')"></label>
+        <label id="rp-mulkiya-label" style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:10px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg><div><div style="font-size:13px;font-weight:600;color:#374151;">Upload Mulkiya <span style="color:#e53e3e;">*</span></div><div style="font-size:11.5px;color:#9ca3af;">Vehicle registration card</div></div><input type="file" id="rp-mulkiya-input" accept="image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" onchange="rpUpload(this,'rp-mulkiya-label','rp-mulkiya-status','mulkiya')"></label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+        <div id="rp-photo-status" style="display:none;font-size:12px;color:#00a064;font-weight:600;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Part photo added</div>
+        <div id="rp-mulkiya-status" style="display:none;font-size:12px;color:#00a064;font-weight:600;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Mulkiya added</div>
+      </div>
+
+      <button onclick="submitPartRequest()" style="width:100%;padding:13px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:14px;font-weight:700;border:none;cursor:pointer;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span> Submit Request</button>
+      <div style="text-align:center;font-size:11.5px;color:#aaa;margin-top:10px;">We'll confirm your request and share pricing on WhatsApp — no payment needed to submit.</div>
+    </div>
+
+    <div id="rp-success" style="display:none;padding:40px 24px;text-align:center;">
+      <div style="width:56px;height:56px;border-radius:50%;background:#e6faf3;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;color:#00a064;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></div>
+      <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:8px;">Request received!</h3>
+      <p style="font-size:13.5px;color:#888;line-height:1.6;">Our team is sourcing your part now. We'll message you on WhatsApp with pricing and availability shortly.</p>
+      <button onclick="closeRequestPartModal()" style="margin-top:20px;padding:11px 24px;border-radius:9px;background:#0a0f1e;color:#fff;font-size:13.5px;font-weight:700;border:none;cursor:pointer;">Done</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
