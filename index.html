@@ -2292,6 +2292,25 @@ button .ico{vertical-align:middle;margin-right:4px;}
   </div>
 </div>
 
+<div class="modal-bg" id="seller-edit-listing-modal" onclick="if(event.target===this)closeGenericModal('seller-edit-listing-modal')">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-hdr"><h3>Edit Listing</h3><button onclick="closeGenericModal('seller-edit-listing-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="sel-edit-id">
+      <div class="form-g" style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Part Name *</label><input id="sel-edit-name-manual" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
+      <div class="form-g" style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">OEM / Part Number *</label><input id="sel-edit-oem" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
+      <div style="display:flex;gap:10px;margin-bottom:11px;">
+        <div style="flex:1;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Price (AED) *</label><input type="number" id="sel-edit-price" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
+        <div style="flex:1;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Discount %</label><input type="number" id="sel-edit-discount" min="0" max="90" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
+      </div>
+      <div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Warranty *</label><div style="display:flex;gap:8px;"><input type="number" id="sel-edit-war-num" min="1" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-war-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months" selected>Month(s)</option><option value="years">Year(s)</option></select></div></div>
+      <div style="margin-bottom:16px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Estimated Delivery Time *</label><div style="display:flex;gap:8px;"><input type="number" id="sel-edit-del-num" min="1" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-del-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="hours">Hour(s)</option><option value="days" selected>Day(s)</option></select></div></div>
+      <button class="btn btn-g" onclick="saveSellerEditListing()">Save Changes</button>
+      <button class="btn btn-out" onclick="closeGenericModal('seller-edit-listing-modal')" style="margin-left:8px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="track-order-modal" onclick="if(event.target===this)closeGenericModal('track-order-modal')">
   <div class="modal" style="max-width:480px;">
     <div class="modal-hdr"><h3>Track Order</h3><button onclick="closeGenericModal('track-order-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
@@ -2643,27 +2662,23 @@ var PART_NAME_OPTIONS=['Brake Pads','Brake Discs / Rotors','Brake Calipers','Oil
    The visible select has id={id}, the manual text field has id={id}-manual.
    Callers should use getPartNameValue(id) to read the actual chosen/typed name. */
 function partNameFieldHtml(id, currentValue){
-  var isKnown = PART_NAME_OPTIONS.indexOf(currentValue)>-1;
   var h='<div class="form-g" style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Part Name *</label>';
-  h+='<select id="'+id+'" onchange="togglePartNameManual(\''+id+'\')" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;margin-bottom:6px;">';
-  h+='<option value="">Select part name</option>';
-  PART_NAME_OPTIONS.forEach(function(p){h+='<option value="'+esc(p)+'"'+(currentValue===p?' selected':'')+'>'+esc(p)+'</option>';});
-  h+='<option value="__other__"'+(currentValue&&!isKnown?' selected':'')+'>Other (type manually)</option>';
+  h+='<select id="'+id+'" onchange="fillPartNameManual(\''+id+'\')" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;margin-bottom:6px;">';
+  h+='<option value="">Select from list, or type below</option>';
+  PART_NAME_OPTIONS.forEach(function(p){h+='<option value="'+esc(p)+'">'+esc(p)+'</option>';});
   h+='</select>';
-  h+='<input id="'+id+'-manual" placeholder="Type the part name" value="'+(!isKnown?esc(currentValue||''):'')+'" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;display:'+(!isKnown&&currentValue?'block':'none')+';">';
+  h+='<input id="'+id+'-manual" placeholder="Type the part name" value="'+esc(currentValue||'')+'" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;">';
   h+='</div>';
   return h;
 }
-function togglePartNameManual(id){
+function fillPartNameManual(id){
   var sel=$el(id), manual=$el(id+'-manual');
   if(!sel||!manual) return;
-  manual.style.display = sel.value==='__other__' ? 'block' : 'none';
+  if(sel.value){ manual.value=sel.value; manual.focus(); }
 }
 function getPartNameValue(id){
-  var sel=$el(id), manual=$el(id+'-manual');
-  if(!sel) return '';
-  if(sel.value==='__other__') return manual?manual.value.trim():'';
-  return sel.value;
+  var manual=$el(id+'-manual');
+  return manual ? manual.value.trim() : '';
 }
 function esc(str){
   if(str===null||str===undefined) return '';
@@ -3623,32 +3638,8 @@ function renderPDPage(page){
     h+='</div>';
 
     // Billing / subscription status
-    (function(){
-      var bill=getBillingInfo(currentUser);
-      if(!bill)return;
-      var barColor = bill.status==='paid'?'#00c47a':bill.status==='pending'?'#f5a623':'#e53e3e';
-      var cycleText = bill.daysRemaining>0
-        ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left in your '+bill.plan.toLowerCase()+' plan'
-        : 'Your '+bill.plan.toLowerCase()+' plan ended '+Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' ago';
-      h+='<div style="background:#fff;border-radius:12px;padding:16px 18px;border:1.5px solid '+barColor+';margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">';
-      h+='<div style="flex:1;min-width:200px;">';
-      h+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">PartSouq ID</div>';
-      h+='<div style="font-size:15px;font-weight:800;font-family:monospace;color:#0f172a;">'+(bill.partsouqId||'—')+'</div>';
-      h+='</div>';
-      h+='<div style="flex:2;min-width:220px;">';
-      h+='<div style="font-size:13px;font-weight:700;color:'+barColor+';margin-bottom:2px;">'+cycleText+'</div>';
-      h+='<div style="font-size:12px;color:#888;margin-bottom:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;vertical-align:-2px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Due: <strong>'+bill.dueDate+'</strong></div>';
-      var pct=Math.max(0,Math.min(100,Math.round((bill.daysRemaining/bill.cycleDays)*100)));
-      h+='<div style="width:100%;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+barColor+';"></div></div>';
-      h+='</div>';
-      h+='<div>'+billingStatusBadge(bill.status)+'</div>';
-      h+='</div>';
-      if(bill.status==='pending'||bill.status==='overdue'){
-        h+='<div style="background:#fff8e6;border:1px solid #f5c842;border-radius:9px;padding:12px 14px;font-size:12.5px;color:#7a4f00;margin-bottom:20px;">';
-        h+='<strong>Payment reminder:</strong> Please arrange your '+bill.plan.toLowerCase()+' payment to PartSouq before your cycle ends, or your account will be automatically blocked until payment is confirmed.';
-        h+='</div>';
-      }
-    })();
+    h+='<div id="pd-billing-container"></div>';
+    setTimeout(loadDashboardBilling, 0);
 
     // Admin-posted partner banners — real, loaded from Supabase just below
     h+='<div id="partner-banners-container"></div>';
@@ -3757,23 +3748,8 @@ function renderPDPage(page){
     if(isSeller) h+='<button data-pdpage="add" style="background:#00c47a;color:#0a0f1e;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;">+ Add Part</button>';
     h+='</div>';
     if(isSeller){
-      var items=[
-        {title:'Bosch Brake Pad Set — GCC',oem:'0986494096',car:'Toyota Hilux',price:220,status:'Active',views:34,orders:2},
-        {title:'KYB Shock Absorber F/R',oem:'344394',car:'Nissan Patrol Y62',price:385,status:'Pending Review',views:12,orders:0},
-        {title:'Denso AC Compressor',oem:'447260-1451',car:'Land Cruiser LC200',price:890,status:'Active',views:67,orders:5},
-      ];
-      h+='<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">';
-      items.forEach(function(item,i){
-        h+='<div style="padding:14px 16px;'+(i<items.length-1?'border-bottom:1px solid #f1f5f9;':'')+'display:flex;align-items:center;gap:12px;">';
-        h+='<div style="width:42px;height:42px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-boxes" style="color:#64748b;font-size:16px;"></i></div>';
-        h+='<div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">'+item.title+'</div>';
-        h+='<div style="font-size:12px;color:#888;">OEM: '+item.oem+' &middot; '+item.car+' &middot; AED '+item.price+'</div>';
-        h+='<div style="font-size:11.5px;color:#6b7280;margin-top:2px;">'+item.views+' views &middot; '+item.orders+' orders</div></div>';
-        h+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+(item.status==='Active'?'#e6faf3':'#fef3c7')+';color:'+(item.status==='Active'?'#065f46':'#92400e')+';">'+item.status+'</span>';
-        h+='<button style="font-size:12px;padding:6px 12px;border-radius:6px;background:#f0f0f0;border:none;cursor:pointer;color:#555;white-space:nowrap;">Edit</button>';
-        h+='</div>';
-      });
-      h+='</div>';
+      h+='<div id="seller-my-listings-container"><div style="text-align:center;color:#888;padding:24px;">Loading your listings…</div></div>';
+      setTimeout(loadSellerMyListings, 0);
     } else {
       var bks2=[
         {ref:'GBK-84521',car:'Toyota Prado LC150 2019 GCC',svc:'Brake Service',date:'Today 10:00am',phone:'+971 50 123 4567',status:'Confirmed'},
@@ -4034,6 +4010,72 @@ function compressImage(file, maxDim, quality){
   });
 }
 /* ══ SELLER ORDERS — real, with status progression ══ */
+/* ══ SELLER'S OWN "MY LISTINGS" — real data, real edit ══ */
+async function loadSellerMyListings(){
+  var el=$el('seller-my-listings-container'); if(!el || !currentUser || !currentUser.id) return;
+  var res=await sb.from('listings').select('*').eq('seller_id',currentUser.id).order('created_at',{ascending:false});
+  var items=(res.data)||[];
+  window._sellerListings=items;
+  if(items.length===0){
+    el.innerHTML='<div style="text-align:center;color:#888;padding:24px;">No listings yet. Click "Add Part" to create your first one.</div>';
+    return;
+  }
+  var LABELS={active:['Active','#e6faf3','#065f46'],pending:['Pending Review','#fef3c7','#92400e'],rejected:['Rejected','#fee2e2','#b91c1c']};
+  var h='<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">';
+  items.forEach(function(item,i){
+    var lbl=LABELS[item.status]||['—','#f1f5f9','#555'];
+    h+='<div style="padding:14px 16px;'+(i<items.length-1?'border-bottom:1px solid #f1f5f9;':'')+'display:flex;align-items:center;gap:12px;">';
+    h+='<div style="width:42px;height:42px;border-radius:8px;background:#f1f5f9;overflow:hidden;flex-shrink:0;">'+(item.main_photo_url?'<img src="'+esc(item.main_photo_url)+'" style="width:100%;height:100%;object-fit:cover;">':'')+'</div>';
+    h+='<div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">'+esc(item.name)+(item.discount_percent>0?' <span style="color:#e53e3e;font-size:11.5px;">('+item.discount_percent+'% off)</span>':'')+'</div>';
+    h+='<div style="font-size:12px;color:#888;">OEM: '+esc(item.oem)+' &middot; AED '+item.price+'</div></div>';
+    h+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+lbl[1]+';color:'+lbl[2]+';">'+lbl[0]+'</span>';
+    h+='<button onclick="openSellerEditListing(\''+item.id+'\')" style="font-size:12px;padding:6px 12px;border-radius:6px;background:#f0f0f0;border:none;cursor:pointer;color:#555;white-space:nowrap;">Edit</button>';
+    h+='</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+function openSellerEditListing(id){
+  var l=(window._sellerListings||[]).find(function(x){return x.id===id;});
+  if(!l){showToast('Listing not found');return;}
+  $el('sel-edit-id').value=id;
+  $el('sel-edit-name-manual').value=l.name||'';
+  $el('sel-edit-oem').value=l.oem||'';
+  $el('sel-edit-price').value=l.price||'';
+  $el('sel-edit-discount').value=l.discount_percent||'';
+  var warMatch=(l.warranty_value&&l.warranty_unit)?l.warranty_value:'';
+  $el('sel-edit-war-num').value=warMatch;
+  if(l.warranty_unit) $el('sel-edit-war-unit').value=l.warranty_unit;
+  var delMatch=(l.delivery_time||'').match(/(\d+)\s*(hour|day)/i);
+  $el('sel-edit-del-num').value=delMatch?delMatch[1]:'';
+  if(delMatch) $el('sel-edit-del-unit').value=delMatch[2].toLowerCase()==='hour'?'hours':'days';
+  openGenericModal('seller-edit-listing-modal');
+}
+async function saveSellerEditListing(){
+  var id=$el('sel-edit-id').value;
+  var name=($el('sel-edit-name-manual')||{}).value||'';
+  var oem=($el('sel-edit-oem')||{}).value||'';
+  var price=($el('sel-edit-price')||{}).value||'';
+  var discount=($el('sel-edit-discount')||{}).value||'';
+  var warNum=($el('sel-edit-war-num')||{}).value||'';
+  var warUnit=($el('sel-edit-war-unit')||{}).value||'';
+  var delNum=($el('sel-edit-del-num')||{}).value||'';
+  var delUnit=($el('sel-edit-del-unit')||{}).value||'days';
+  if(!name||!oem||!price){showToast('Please fill in Part Name, OEM, and Price');return;}
+  if(!warNum){showToast('Warranty is required');return;}
+  if(!delNum){showToast('Estimated Delivery Time is required');return;}
+  var res=await sb.from('listings').update({
+    name:name, oem:oem, price:parseFloat(price)||0,
+    discount_percent:parseInt(discount)||0,
+    warranty_value:parseInt(warNum), warranty_unit:warUnit,
+    delivery_time: delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days'))
+  }).eq('id',id);
+  if(res.error){showToast('Could not save: '+res.error.message);return;}
+  showToast('Listing updated');
+  closeGenericModal('seller-edit-listing-modal');
+  loadSellerMyListings();
+  loadRealListings();
+}
 async function loadSellerOrders(){
   var el=$el('seller-orders-list'); if(!el || !currentUser || !currentUser.id) return;
   var res=await sb.from('orders').select('*').eq('seller_id',currentUser.id).order('created_at',{ascending:false});
@@ -6560,6 +6602,43 @@ async function deletePartnerBanner(id){
   renderPartnerBanners();
 }
 /* Returns the currently active banners relevant to a given partner role */
+async function loadDashboardBilling(){
+  var container=$el('pd-billing-container');
+  if(!container || !currentUser || !currentUser.id) return;
+  var profRes=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  var profile=profRes.data;
+  if(!profile){ container.innerHTML=''; return; }
+  var effectivePlan=await getEffectivePlan(currentUser.id);
+  var profileWithPlan=Object.assign({},profile,{plan:effectivePlan});
+  var bill=getBillingInfo(profileWithPlan);
+  if(!bill){
+    container.innerHTML='<div style="background:#fff;border-radius:12px;padding:16px 18px;border:1.5px solid #e2e8f0;margin-bottom:20px;font-size:13px;color:#888;">No billing cycle set yet on your account. Contact PartSouq support if this looks wrong.</div>';
+    return;
+  }
+  var barColor = bill.status==='paid'?'#00c47a':bill.status==='pending'?'#f5a623':'#e53e3e';
+  var cycleText = bill.daysRemaining>0
+    ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left in your '+bill.plan.toLowerCase()+' plan'
+    : 'Your '+bill.plan.toLowerCase()+' plan ended '+Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' ago';
+  var h='<div style="background:#fff;border-radius:12px;padding:16px 18px;border:1.5px solid '+barColor+';margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">';
+  h+='<div style="flex:1;min-width:200px;">';
+  h+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">PartSouq ID</div>';
+  h+='<div style="font-size:15px;font-weight:800;font-family:monospace;color:#0f172a;">'+esc(bill.partsouqId||'—')+'</div>';
+  h+='</div>';
+  h+='<div style="flex:2;min-width:220px;">';
+  h+='<div style="font-size:13px;font-weight:700;color:'+barColor+';margin-bottom:2px;">'+cycleText+'</div>';
+  h+='<div style="font-size:12px;color:#888;margin-bottom:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;vertical-align:-2px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Due: <strong>'+bill.dueDate+'</strong></div>';
+  var pct=Math.max(0,Math.min(100,Math.round((bill.daysRemaining/bill.cycleDays)*100)));
+  h+='<div style="width:100%;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+barColor+';"></div></div>';
+  h+='</div>';
+  h+='<div>'+billingStatusBadge(bill.status)+'</div>';
+  h+='</div>';
+  if(bill.status==='pending'||bill.status==='overdue'){
+    h+='<div style="background:#fff8e6;border:1px solid #f5c842;border-radius:9px;padding:12px 14px;font-size:12.5px;color:#7a4f00;margin-bottom:20px;">';
+    h+='<strong>Payment reminder:</strong> Please arrange your '+bill.plan.toLowerCase()+' payment to PartSouq before your cycle ends, or your account will be automatically blocked until payment is confirmed.';
+    h+='</div>';
+  }
+  container.innerHTML=h;
+}
 async function loadPartnerBannersForDashboard(){
   var container=$el('partner-banners-container');
   if(!container || !currentUser) return;
@@ -6887,7 +6966,7 @@ function renderPage(page){
   else if(page==='catimages'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderCategoryImages(); }
   else if(page==='sellers'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderSellers(); }
   else if(page==='garages'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderGarages(); }
-  else if(page==='billing') c.innerHTML=renderBilling();
+  else if(page==='billing'){ renderBilling(); }
   else if(page==='banners') c.innerHTML=renderBanners();
   else if(page==='users'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderUsers(); }
   else if(page==='settings'){ c.innerHTML=renderSettings(); }
@@ -7396,81 +7475,79 @@ async function rejectPartnerApp(id){
 function getAllPartners(){
   return DEMO_ACCOUNTS.filter(function(u){return (u.role==='seller'||u.role==='garage')&&u.cycleStart;});
 }
-function renderBilling(){
-  var partners=getAllPartners();
-  var counts={total:partners.length,paid:0,pending:0,overdue:0,blocked:0};
-  var rows=partners.map(function(u){
-    var bill=getBillingInfo(u);
-    counts[bill.status]++;
-    return {u:u,bill:bill};
+async function renderBilling(){
+  var c=$el('content'); if(!c) return;
+  c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>';
+  var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
+  var partners=(res.data)||[];
+  var groups={paid:[],pending:[],overdue:[],blocked:[]};
+  for(var i=0;i<partners.length;i++){
+    var p=partners[i];
+    var effectivePlan=await getEffectivePlan(p.id);
+    var pWithPlan=Object.assign({},p,{plan:effectivePlan});
+    var bill=getBillingInfo(pWithPlan);
+    if(!bill) continue;
+    groups[bill.status].push({p:p,bill:bill});
+  }
+  ['paid','pending','overdue','blocked'].forEach(function(k){
+    groups[k].sort(function(a,b){return a.bill.daysRemaining-b.bill.daysRemaining;});
   });
-  rows.sort(function(a,b){return a.bill.daysRemaining-b.bill.daysRemaining;});
 
   var h='<div class="sec-hdr"><h2>Partner Billing</h2></div>';
-  h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">';
-  h+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;color:#00c47a;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg></span>Sellers are billed monthly (30-day cycle), garages are billed weekly (7-day cycle). A partner is automatically blocked from login once their cycle ends without renewal — unblock manually here once payment is confirmed.</div>';
+  h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">Sellers are billed monthly (30-day cycle), garages weekly (7-day cycle). Grouped below by status so the right action is always obvious.</div>';
 
-  h+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;">';
-  function billStat(label,val,bg,color){
-    return '<div style="background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #e2e8f0;">'
-      +'<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">'+label+'</div>'
-      +'<div style="font-size:26px;font-weight:800;color:'+color+';">'+val+'</div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">';
+  function billStat(label,val,color){
+    return '<div style="background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #e2e8f0;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+';">'+val+'</div></div>';
   }
-  h+=billStat('Total Partners',counts.total,'#e0f2fe','#0f172a');
-  h+=billStat('Paid',counts.paid,'#dcfce7','#15803d');
-  h+=billStat('Renewal Due Soon',counts.pending,'#fef3c7','#92400e');
-  h+=billStat('Overdue',counts.overdue,'#fee2e2','#b91c1c');
-  h+=billStat('Blocked',counts.blocked,'#fee2e2','#991b1b');
+  h+=billStat('Paid',groups.paid.length,'#15803d');
+  h+=billStat('Renewal Due Soon',groups.pending.length,'#92400e');
+  h+=billStat('Overdue',groups.overdue.length,'#b91c1c');
+  h+=billStat('Blocked',groups.blocked.length,'#991b1b');
   h+='</div>';
 
-  h+='<div class="card"><table><thead><tr><th>PartSouq ID</th><th>Partner</th><th>Type</th><th>Plan</th><th>Cycle Status</th><th>Payment Status</th><th>Action</th></tr></thead><tbody>';
-  rows.forEach(function(r){
-    var u=r.u,bill=r.bill;
-    var cycleText = bill.daysRemaining>0
-      ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left'
-      : (Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' overdue');
-    var cycleColor = bill.status==='paid'?'#065f46':bill.status==='pending'?'#92400e':'#b91c1c';
-    var actionBtns='';
-    if(bill.blocked){
-      actionBtns='<button class="btn btn-g btn-sm" onclick="unblockPartner(\''+u.email+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 8h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h9"/><path d="M7 8V6a4 4 0 0 1 8 0"/></svg></span> Confirm Payment &amp; Unblock</button>';
-    } else {
-      actionBtns='<button class="btn btn-out btn-sm" onclick="markPartnerPaid(\''+u.email+'\')">Renew / Mark Paid</button>'
-        +'<button class="btn btn-re btn-sm" onclick="blockPartner(\''+u.email+'\')" style="margin-left:6px;">Block</button>';
+  var GROUP_META={
+    paid:['Paid — Active Subscriptions','#065f46','#e6faf3'],
+    pending:['Renewal Due Soon','#92400e','#fff8e6'],
+    overdue:['Overdue','#b91c1c','#fee2e2'],
+    blocked:['Blocked','#991b1b','#fee2e2']
+  };
+  ['blocked','overdue','pending','paid'].forEach(function(k){
+    var meta=GROUP_META[k];
+    var list=groups[k];
+    h+='<div style="margin-bottom:10px;"><h3 style="font-size:15px;font-weight:800;color:'+meta[1]+';background:'+meta[2]+';display:inline-block;padding:6px 14px;border-radius:8px;">'+meta[0]+' ('+list.length+')</h3></div>';
+    if(list.length===0){
+      h+='<div class="card" style="padding:18px;margin-bottom:20px;text-align:center;color:#888;font-size:13px;">None.</div>';
+      return;
     }
-    actionBtns+='<button class="btn btn-out btn-sm" onclick="changeAccountPassword(\''+u.email+'\')" title="Change Password" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span></button>'
-      +'<button class="btn btn-out btn-sm" onclick="changeAccountEmail(\''+u.email+'\')" title="Change Email" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span></button>';
-    h+='<tr><td style="font-family:monospace;font-weight:700;font-size:12.5px;">'+(u.partsouqId||'—')+'</td>';
-    h+='<td class="fw7">'+u.name+'<div style="font-size:11px;color:#888;font-weight:400;">'+u.email+'</div></td>';
-    h+='<td><span class="badge '+(u.role==='seller'?'badge-b':'badge-o')+'">'+(u.role==='seller'?'Seller':'Garage')+'</span></td>';
-    h+='<td style="font-size:12.5px;">'+bill.plan+'</td>';
-    h+='<td style="font-size:12.5px;font-weight:700;color:'+cycleColor+';">'+cycleText+'</td>';
-    h+='<td>'+billingStatusBadge(bill.status)+'</td>';
-    h+='<td><div class="td-actions">'+actionBtns+'</div></td></tr>';
+    h+='<div class="card" style="margin-bottom:20px;"><table><thead><tr><th>PartSouq ID</th><th>Partner</th><th>Type</th><th>Plan</th><th>Cycle Status</th><th>Action</th></tr></thead><tbody>';
+    list.forEach(function(r){
+      var p=r.p, bill=r.bill;
+      var cycleText = bill.daysRemaining>0
+        ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left (due '+bill.dueDate+')'
+        : (Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' overdue (was due '+bill.dueDate+')');
+      var page=p.role==='garage'?'garages':'sellers';
+      var actionBtns='';
+      if(k==='blocked'){
+        actionBtns='<button class="btn btn-g btn-sm" onclick="unblockPartnerReal(\''+p.id+'\',\''+page+'\')">Unblock</button>'
+          +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+p.id+'\',\''+bill.plan.toLowerCase()+'\',\''+(p.listing_limit_override!=null?p.listing_limit_override:'')+'\',\''+page+'\')" style="margin-left:6px;">Enrollment</button>';
+      } else if(k==='overdue' || k==='pending'){
+        actionBtns='<button class="btn btn-g btn-sm" onclick="setPartnerPlanReal(\''+p.id+'\',\''+bill.plan.toLowerCase()+'\',\''+(p.listing_limit_override!=null?p.listing_limit_override:'')+'\',\''+page+'\')">Renew / Enrollment</button>'
+          +'<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+p.id+'\',\''+page+'\')" style="margin-left:6px;">Block</button>';
+      } else {
+        actionBtns='<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+p.id+'\',\''+esc(p.name)+'\')">Statement</button>'
+          +'<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+p.id+'\',\''+page+'\')" style="margin-left:6px;">Block</button>';
+      }
+      h+='<tr><td style="font-family:monospace;font-weight:700;font-size:12.5px;">'+esc(p.partsouq_id||'—')+'</td>';
+      h+='<td class="fw7">'+esc(p.name)+'</td>';
+      h+='<td><span class="badge '+(p.role==='seller'?'badge-b':'badge-o')+'">'+(p.role==='seller'?'Seller':'Garage')+'</span></td>';
+      h+='<td style="font-size:12.5px;text-transform:capitalize;">'+bill.plan+'</td>';
+      h+='<td style="font-size:12.5px;font-weight:700;color:'+meta[1]+';">'+cycleText+'</td>';
+      h+='<td><div class="td-actions">'+actionBtns+'</div></td></tr>';
+    });
+    h+='</tbody></table></div>';
   });
-  h+='</tbody></table></div>';
-  return h;
-}
-function markPartnerPaid(email){
-  var u=DEMO_ACCOUNTS.find(function(x){return x.email===email;});
-  if(!u)return;
-  u.cycleStart=Date.now();
-  showToast(u.name+'\u2019s plan renewed \u2014 payment marked as received');
-  renderPage('billing');
-}
-function unblockPartner(email){
-  var u=DEMO_ACCOUNTS.find(function(x){return x.email===email;});
-  if(!u)return;
-  u.manualBlocked=false;
-  u.cycleStart=Date.now();
-  showToast(u.name+' unblocked \u2014 payment confirmed, partner can log in again');
-  renderPage('billing');
-}
-function blockPartner(email){
-  var u=DEMO_ACCOUNTS.find(function(x){return x.email===email;});
-  if(!u)return;
-  u.manualBlocked=true;
-  showToast(u.name+' has been blocked from logging in');
-  renderPage('billing');
+  c.innerHTML=h;
 }
 
 async function renderOrders(){
@@ -7863,7 +7940,7 @@ async function viewPartnerStatement(id,name){
   records.forEach(function(r,i){
     var dateStr=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
     h+='<div id="ps-row-'+r.id+'" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;'+(i<records.length-1?'border-bottom:1px solid #f1f5f9;':'')+'">';
-    h+='<div style="font-size:13px;color:#374151;">'+dateStr+'</div>';
+    h+='<div style="font-size:13px;color:#374151;">'+dateStr+(r.note?'<div style="font-size:11px;color:#888;font-style:italic;">Corrected: '+esc(r.note)+'</div>':'')+'</div>';
     h+='<div style="display:flex;align-items:center;gap:8px;">';
     h+='<span id="ps-amt-'+r.id+'" style="font-size:13.5px;font-weight:800;color:#00a064;">AED '+parseFloat(r.amount).toLocaleString()+'</span>';
     h+='<button onclick="editPaymentRecord(\''+r.id+'\')" title="Edit" style="background:#f1f5f9;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><span class="ico" style="width:13px;height:13px;color:#555;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span></button>';
@@ -7877,17 +7954,23 @@ function editPaymentRecord(id){
   if(!rowEl||!record) return;
   var amtSpan=$el('ps-amt-'+id);
   if(!amtSpan) return;
-  amtSpan.outerHTML='<input id="ps-edit-input-'+id+'" type="number" value="'+record.amount+'" style="width:90px;padding:4px 8px;border:1.5px solid #00c47a;border-radius:6px;font-size:13px;font-weight:700;">'
-    +'<button onclick="savePaymentRecordEdit(\''+id+'\')" style="margin-left:6px;background:#00c47a;color:#0a0f1e;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">Save</button>';
+  amtSpan.outerHTML='<div style="display:inline-flex;flex-direction:column;gap:4px;align-items:flex-end;">'
+    +'<input id="ps-edit-input-'+id+'" type="number" value="'+record.amount+'" style="width:90px;padding:4px 8px;border:1.5px solid #00c47a;border-radius:6px;font-size:13px;font-weight:700;">'
+    +'<input id="ps-edit-reason-'+id+'" type="text" placeholder="Reason for correction (required)" style="width:220px;padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:11.5px;">'
+    +'<button onclick="savePaymentRecordEdit(\''+id+'\')" style="background:#00c47a;color:#0a0f1e;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">Save</button>'
+    +'</div>';
 }
 async function savePaymentRecordEdit(id){
   var input=$el('ps-edit-input-'+id);
+  var reasonInput=$el('ps-edit-reason-'+id);
   if(!input) return;
   var newAmount=parseFloat(input.value);
   if(isNaN(newAmount)||newAmount<=0){showToast('Please enter a valid amount');return;}
-  var res=await sb.from('payment_records').update({amount:newAmount}).eq('id',id);
+  var reason=(reasonInput?reasonInput.value:'').trim();
+  if(!reason){showToast('A reason is required when correcting a payment record');return;}
+  var res=await sb.from('payment_records').update({amount:newAmount, note:reason}).eq('id',id);
   if(res.error){showToast('Could not update: '+res.error.message);return;}
-  showToast('Payment record updated');
+  showToast('Payment record corrected');
   viewPartnerStatement(window._psPartnerId, window._psPartnerName);
 }
 
