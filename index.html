@@ -2368,6 +2368,8 @@ button .ico{vertical-align:middle;margin-right:4px;}
   <div class="sb-sect">
     <div class="sb-sect-lbl">Operations</div>
     <div class="sb-item" onclick="showPage('applications',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span> Applications <span class="sb-badge" id="sb-apps-badge">0</span></div>
+    <div class="sb-item" onclick="showPage('overrides',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span> Listing/Service Overrides</div>
+    <div class="sb-item" onclick="showPage('bannermanagement',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span> Featured Banner Management</div>
   </div>
 
   <div class="sb-sect">
@@ -2381,8 +2383,8 @@ button .ico{vertical-align:middle;margin-right:4px;}
   </div>
 
   <div class="sb-sect">
-    <div class="sb-sect-lbl">Accounts &amp; Payments</div>
-    <div class="sb-item" onclick="showPage('paymentstatements',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Payment Statements</div>
+    <div class="sb-sect-lbl">Finance (Accounts)</div>
+    <div class="sb-item" onclick="showPage('paymentstatements',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Subscriptions &amp; Payments</div>
     <div class="sb-item" onclick="showPage('billing',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span> Partner Billing</div>
   </div>
 
@@ -4611,7 +4613,10 @@ async function ckConfirm(){
   }).select().single();
 
   if(res.error){
-    showToast('Could not place order: '+res.error.message);
+    var friendlyMsg = res.error.message && res.error.message.indexOf('row-level security')>-1
+      ? 'This seller is temporarily unavailable and cannot accept new orders right now. Please try a different listing.'
+      : 'Could not place order: '+res.error.message;
+    showToast(friendlyMsg);
     if(btn){btn.disabled=false;btn.textContent='Confirm Order — Pay Cash on Delivery';}
     return;
   }
@@ -4746,7 +4751,7 @@ function showPage(page,el){
     dashboard:'Dashboard',analytics:'Analytics',pending:'Pending Approval',listings:'All Listings',
     addlisting:'Add Listing',applications:'Partner Applications',sellers:'Spare Part Sellers',
     garages:'Garages',orders:'All Orders',disputes:'Disputes & Claims',payouts:'Payouts',billing:'Partner Billing',
-    discounts:'Discounts & Deals',partnerbanners:'Partner Banners',herobanners:'Hero Banners',catimages:'Category Images',contactsubs:'Contact Submissions',support:'Support Tickets',partrequests:'Part Requests',paymentstatements:'Payment Statements',
+    discounts:'Discounts & Deals',partnerbanners:'Partner Banners',herobanners:'Hero Banners',catimages:'Category Images',contactsubs:'Contact Submissions',support:'Support Tickets',partrequests:'Part Requests',paymentstatements:'Subscriptions & Payments',overrides:'Listing/Service Overrides',bannermanagement:'Featured Banner Management',
     users:'Users / Buyers',settings:'Settings'
   }[page]||page;
   renderPage(page);
@@ -5282,9 +5287,14 @@ function genPartsouqId(type){
   return id;
 }
 var PLAN_LIMITS={
-  seller:{free:3, basic:10, mid:25, max:null},
-  garage:{free:2, basic:6, mid:6, max:null}
+  seller:{free:3, basic:10, mid:25, max:55},
+  garage:{free:2, basic:6, max:15}
 };
+var PLAN_PRICES={
+  seller:{free:0, basic:49, mid:99, max:179},
+  garage:{free:0, basic:25, max:49}
+};
+var FEATURED_PRICE_PER_WEEK=10;
 /* Derives the ACTUAL current plan from the seller/garage's most recent
    payment enrollment — not a permanent setting. Once that paid period
    ends, this automatically reads back as 'free', no admin action or
@@ -6872,6 +6882,8 @@ function renderPage(page){
   else if(page==='herobanners'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderHeroBanners(); }
   else if(page==='contactsubs'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderContactSubs(); }
   else if(page==='paymentstatements'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderPaymentStatements(); }
+  else if(page==='overrides'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderOverrides(); }
+  else if(page==='bannermanagement'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderBannerManagement(); }
   else if(page==='catimages'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderCategoryImages(); }
   else if(page==='sellers'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderSellers(); }
   else if(page==='garages'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderGarages(); }
@@ -7172,6 +7184,159 @@ async function saveListing(mode){
 
 function statusBadge(s){var map={delivered:'<span class="badge badge-g"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Delivered</span>',in_transit:'<span class="badge badge-b"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span> In Transit</span>',confirmed:'<span class="badge badge-o"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> Confirmed</span>',dispute:'<span class="badge badge-r"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="3" width="2" height="13" rx="1"/><rect x="11" y="19" width="2" height="2" rx="1"/></svg></span> Dispute</span>',pending:'<span class="badge badge-o">Pending</span>',active:'<span class="badge badge-g">Active</span>',draft:'<span class="badge badge-gr">Draft</span>',rejected:'<span class="badge badge-r">Rejected</span>',expired:'<span class="badge badge-gr">Expired</span>',open:'<span class="badge badge-r">Open</span>',escalated:'<span class="badge badge-r" style="background:#fee2e2;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0-4 5-4 10a4 4 0 0 0 8 0c0-5-4-10-4-10z" opacity=".4"/><path d="M12 8c0 0-2 2.5-2 5a2 2 0 0 0 4 0c0-2.5-2-5-2-5z"/></svg></span> Escalated</span>',review:'<span class="badge badge-o">Under Review</span>',resolved:'<span class="badge badge-g">Resolved</span>'};return map[s]||'<span class="badge badge-gr">'+s+'</span>';}
 
+async function renderBannerManagement(){
+  var c=$el('content'); if(!c) return;
+  var h='<div class="sec-hdr"><h2>Featured Banner Management</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">Enter a Seller/Garage ID or business name to find their listings. The banner is generated automatically from their existing listing photo and details \u2014 no manual image upload needed. Featured banners run for exactly 1 week and expire automatically.</div>';
+  h+='<div class="card" style="padding:20px;margin-bottom:20px;">';
+  h+='<div class="form-g" style="margin-bottom:12px;"><label>Search by PartSouq ID or Business Name</label><div style="display:flex;gap:8px;"><input id="bm-search" type="text" placeholder="e.g. PSS-00001 or Al Quoz Auto Parts" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;" onkeypress="if(event.key===\'Enter\')bmSearchPartner()"><button class="btn btn-g" onclick="bmSearchPartner()">Search</button></div></div>';
+  h+='<div id="bm-results"></div>';
+  h+='</div>';
+  h+='<div class="sec-hdr"><h2>Active Featured Banners</h2></div>';
+  h+='<div id="bm-active-list"><div class="card" style="padding:20px;text-align:center;color:#888;">Loading…</div></div>';
+  c.innerHTML=h;
+  loadActiveFeaturedBanners();
+}
+async function bmSearchPartner(){
+  var q=(($el('bm-search')||{}).value||'').trim();
+  var resultsEl=$el('bm-results');
+  if(!q){showToast('Please enter an ID or business name');return;}
+  if(resultsEl) resultsEl.innerHTML='<div style="color:#888;padding:12px 0;">Searching…</div>';
+  var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
+  var all=(res.data)||[];
+  var ql=q.toLowerCase();
+  var matches=all.filter(function(p){return (p.partsouq_id||'').toLowerCase().indexOf(ql)>-1 || (p.name||'').toLowerCase().indexOf(ql)>-1;});
+  if(matches.length===0){
+    if(resultsEl) resultsEl.innerHTML='<div style="color:#b91c1c;padding:12px 0;">No seller or garage found matching that.</div>';
+    return;
+  }
+  var p=matches[0];
+  var listingsRes = p.role==='seller'
+    ? await sb.from('listings').select('*').eq('seller_id',p.id).eq('status','active')
+    : await sb.from('garage_services').select('*').eq('garage_id',p.id).eq('status','active');
+  var items=(listingsRes.data)||[];
+  var h='<div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-top:8px;">';
+  h+='<div style="font-size:14px;font-weight:800;margin-bottom:2px;">'+esc(p.name)+'</div>';
+  h+='<div style="font-size:12px;color:#888;margin-bottom:12px;">'+esc(p.partsouq_id||'')+' &middot; '+(p.role==='seller'?'Seller':'Garage')+'</div>';
+  if(items.length===0){
+    h+='<div style="color:#888;font-size:13px;">This partner has no active '+(p.role==='seller'?'listings':'services')+' to feature yet.</div>';
+  } else {
+    h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Select listing to feature</label>';
+    h+='<select id="bm-listing-select" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;margin-bottom:12px;">';
+    items.forEach(function(it){h+='<option value="'+it.id+'">'+esc(it.name)+' — AED '+it.price+'</option>';});
+    h+='</select>';
+    h+='<button class="btn btn-g" onclick="bmActivateFeatured(\''+p.id+'\',\''+p.role+'\')">Activate Featured — AED '+FEATURED_PRICE_PER_WEEK+' for 1 Week</button>';
+  }
+  h+='</div>';
+  if(resultsEl) resultsEl.innerHTML=h;
+}
+async function bmActivateFeatured(partnerId,role){
+  var listingSel=$el('bm-listing-select');
+  if(!listingSel||!listingSel.value){showToast('Please select a listing to feature');return;}
+  var periodStart=new Date().toISOString().slice(0,10);
+  var periodEnd=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  var payload={
+    partner_id:partnerId, amount:FEATURED_PRICE_PER_WEEK,
+    period_start:periodStart, period_end:periodEnd,
+    activated_by:(currentUser?currentUser.id:null)
+  };
+  if(role==='seller') payload.listing_id=listingSel.value; else payload.service_id=listingSel.value;
+  var res=await sb.from('featured_listings').insert(payload);
+  if(res.error){showToast('Could not activate: '+res.error.message);return;}
+  showToast('Featured banner activated — active until '+periodEnd);
+  loadActiveFeaturedBanners();
+}
+async function loadActiveFeaturedBanners(){
+  var el=$el('bm-active-list'); if(!el) return;
+  var today=new Date().toISOString().slice(0,10);
+  var res=await sb.from('featured_listings').select('*, profiles!featured_listings_partner_id_fkey(name)').order('period_end',{ascending:true});
+  var all=(res.data)||[];
+  var active=all.filter(function(f){return f.period_end>=today;});
+  if(active.length===0){
+    el.innerHTML='<div class="card" style="padding:30px;text-align:center;color:#888;font-size:13.5px;">No featured banners currently active.</div>';
+    return;
+  }
+  var h='<div class="card"><table><thead><tr><th>Partner</th><th>Amount</th><th>Expires</th><th>Status</th></tr></thead><tbody>';
+  active.forEach(function(f){
+    var pname=(f.profiles&&f.profiles.name)?f.profiles.name:'Unknown';
+    var daysLeft=Math.ceil((new Date(f.period_end)-new Date())/86400000);
+    h+='<tr><td class="fw7">'+esc(pname)+'</td><td>AED '+f.amount+'</td><td>'+f.period_end+' ('+daysLeft+' day'+(daysLeft===1?'':'s')+' left)</td><td><span class="badge badge-g">Active</span></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+async function renderOverrides(){
+  var c=$el('content'); if(!c) return;
+  var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
+  var partners=(res.data)||[];
+  var histRes=await sb.from('limit_overrides').select('*, profiles!limit_overrides_partner_id_fkey(name)').order('created_at',{ascending:false});
+  var history=(histRes.data)||[];
+
+  var h='<div class="sec-hdr"><h2>Listing / Service Overrides</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">Grant a seller or garage extra listings/services without changing their subscription plan — e.g. a promotional extension. Every override requires a reason and is fully tracked below.</div>';
+
+  h+='<div class="card" style="margin-bottom:20px;"><table><thead><tr><th>Partner</th><th>Type</th><th>Plan Default</th><th>Current Override</th><th>Effective Limit</th><th>Action</th></tr></thead><tbody>';
+  if(partners.length===0){h+='<tr><td colspan="6" style="text-align:center;color:#888;padding:24px;">No sellers or garages yet.</td></tr>';}
+  for(var i=0;i<partners.length;i++){
+    var p=partners[i];
+    var effectivePlan=await getEffectivePlan(p.id);
+    var role=p.role==='garage'?'garage':'seller';
+    var planDefault=PLAN_LIMITS[role][effectivePlan]!=null?PLAN_LIMITS[role][effectivePlan]:'—';
+    var hasOverride=p.listing_limit_override!=null;
+    var effectiveLimit=hasOverride?p.listing_limit_override:planDefault;
+    h+='<tr><td class="fw7">'+esc(p.name)+'</td>';
+    h+='<td><span class="badge '+(p.role==='seller'?'badge-b':'badge-o')+'">'+(p.role==='seller'?'Seller':'Garage')+'</span></td>';
+    h+='<td style="font-size:12.5px;">'+planDefault+' ('+esc(effectivePlan)+')</td>';
+    h+='<td style="font-size:12.5px;">'+(hasOverride?p.listing_limit_override:'<span style="color:#aaa;">None</span>')+'</td>';
+    h+='<td class="fw7">'+effectiveLimit+'</td>';
+    h+='<td><div class="td-actions">'
+      +'<button class="btn btn-g btn-sm" onclick="openOverrideModal(\''+p.id+'\',\''+esc(p.name)+'\',\''+(hasOverride?p.listing_limit_override:'')+'\')">Set Override</button>'
+      +(hasOverride?'<button class="btn btn-re btn-sm" onclick="removeOverride(\''+p.id+'\',\''+esc(p.name)+'\')" style="margin-left:6px;">Remove</button>':'')
+      +'</div></td></tr>';
+  }
+  h+='</tbody></table></div>';
+
+  h+='<div class="sec-hdr"><h2>Override History</h2></div>';
+  h+='<div class="card"><table><thead><tr><th>Partner</th><th>Override Value</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+  if(history.length===0){h+='<tr><td colspan="5" style="text-align:center;color:#888;padding:24px;">No overrides recorded yet.</td></tr>';}
+  history.forEach(function(hrow){
+    var pname=(hrow.profiles&&hrow.profiles.name)?hrow.profiles.name:'Unknown';
+    var dateStr=new Date(hrow.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    h+='<tr><td class="fw7">'+esc(pname)+'</td><td>'+(hrow.override_value!=null?hrow.override_value:'Removed')+'</td>';
+    h+='<td style="font-size:12.5px;max-width:280px;">'+esc(hrow.reason)+'</td>';
+    h+='<td>'+(hrow.active?'<span class="badge badge-g">Active</span>':'<span class="badge" style="background:#f1f5f9;color:#888;">Superseded</span>')+'</td>';
+    h+='<td style="font-size:12px;color:#888;">'+dateStr+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  c.innerHTML=h;
+}
+function openOverrideModal(id,name,currentValue){
+  var val=prompt('Set override limit for '+name+' (leave blank to clear):', currentValue);
+  if(val===null) return;
+  var reason=prompt('Reason for this override (required):');
+  if(!reason||!reason.trim()){showToast('A reason is required for every override');return;}
+  saveOverride(id, val.trim()===''?null:parseInt(val), reason.trim());
+}
+async function saveOverride(id, value, reason){
+  if(value!=null && isNaN(value)){showToast('Please enter a valid number');return;}
+  // Mark any previous active override for this partner as superseded
+  await sb.from('limit_overrides').update({active:false}).eq('partner_id',id).eq('active',true);
+  var histRes=await sb.from('limit_overrides').insert({
+    partner_id:id, override_value:value, reason:reason,
+    set_by:(currentUser?currentUser.id:null), active:true
+  });
+  if(histRes.error){showToast('Could not log override: '+histRes.error.message);return;}
+  var profRes=await sb.from('profiles').update({listing_limit_override:value}).eq('id',id);
+  if(profRes.error){showToast('Could not update limit: '+profRes.error.message);return;}
+  showToast('Override saved');
+  renderOverrides();
+}
+async function removeOverride(id,name){
+  if(!confirm('Remove the override for '+name+'? They will return to their plan\'s default limit.')) return;
+  var reason=prompt('Reason for removing this override (required):');
+  if(!reason||!reason.trim()){showToast('A reason is required');return;}
+  await saveOverride(id, null, 'Removed: '+reason.trim());
+}
 async function renderApplications(){
   var c=$el('content'); if(!c) return;
   var res=await sb.from('partner_applications').select('*').order('created_at',{ascending:false});
@@ -7558,13 +7723,28 @@ async function renderSellers(){
 function setPartnerPlanReal(id,currentPlan,currentOverride,page){
   $safe('pl-id',function(e){e.value=id;});
   $safe('pl-page',function(e){e.value=page;});
-  $safe('pl-plan',function(e){e.value=currentPlan||'free';});
+  var role=page==='garages'?'garage':'seller';
+  var planSel=$el('pl-plan');
+  if(planSel){
+    var cycleWord=role==='garage'?'week':'month';
+    var opts='<option value="free">Free (no payment)</option>';
+    ['basic','mid','max'].forEach(function(pl){
+      if(PLAN_PRICES[role][pl]==null) return; // garage has no 'mid'
+      opts+='<option value="'+pl+'">'+pl.charAt(0).toUpperCase()+pl.slice(1)+' — AED '+PLAN_PRICES[role][pl]+'/'+cycleWord+' — '+PLAN_LIMITS[role][pl]+' '+(role==='garage'?'services':'listings')+'</option>';
+    });
+    planSel.innerHTML=opts;
+    planSel.value=currentPlan||'free';
+    planSel.onchange=function(){
+      var p=planSel.value;
+      $safe('pl-amount',function(e){e.value = p==='free' ? '' : PLAN_PRICES[role][p]; });
+    };
+  }
   $safe('pl-amount',function(e){e.value='';});
   var overrideSel=$el('pl-override');
   if(overrideSel){
-    var opts='<option value="">Use plan default</option>';
-    for(var i=1;i<=100;i++){ opts+='<option value="'+i+'">'+i+' listings</option>'; }
-    overrideSel.innerHTML=opts;
+    var opts2='<option value="">Use plan default</option>';
+    for(var i=1;i<=100;i++){ opts2+='<option value="'+i+'">'+i+' '+(role==='garage'?'services':'listings')+'</option>'; }
+    overrideSel.innerHTML=opts2;
     overrideSel.value = (currentOverride!=null && currentOverride!=='') ? String(currentOverride) : '';
   }
   openGenericModal('plan-limit-modal');
@@ -7622,7 +7802,24 @@ async function renderPaymentStatements(){
   var c=$el('content'); if(!c) return;
   var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
   var partners=(res.data)||[];
-  var h='<div class="sec-hdr"><h2>Payment Statements ('+partners.length+')</h2></div>';
+  var h='<div class="sec-hdr"><h2>Subscriptions &amp; Payments ('+partners.length+')</h2></div>';
+  h+='<div class="card" style="padding:18px 20px;margin-bottom:18px;border:1.5px solid #00c47a;">';
+  h+='<div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:12px;">Subscription Plan Reference</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+  h+='<div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Seller Plans (Monthly)</div>';
+  h+='<div style="font-size:12.5px;line-height:1.9;">'
+    +'Free — AED 0 — 3 Listings<br>'
+    +'Basic — AED 49/month — 10 Listings<br>'
+    +'Mid — AED 99/month — 25 Listings<br>'
+    +'Max — AED 179/month — 55 Listings</div></div>';
+  h+='<div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Garage Plans (Weekly)</div>';
+  h+='<div style="font-size:12.5px;line-height:1.9;">'
+    +'Free — AED 0 — 2 Services<br>'
+    +'Basic — AED 25/week — 6 Services<br>'
+    +'Max — AED 49/week — 15 Services</div></div>';
+  h+='</div>';
+  h+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:12.5px;"><strong>Featured Add-on:</strong> AED 10 per listing, per week</div>';
+  h+='</div>';
   h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">One central place for the accounts team to enroll partners in a paid plan and review every seller and garage\'s statement \u2014 separate from day-to-day operations management.</div>';
   h+='<div class="card"><table><thead><tr><th>Partner</th><th>Type</th><th>PartSouq ID</th><th>Plan</th><th>Billing Cycle</th><th>Account Status</th><th>Action</th></tr></thead><tbody>';
   if(partners.length===0){h+='<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No sellers or garages yet.</td></tr>';}
