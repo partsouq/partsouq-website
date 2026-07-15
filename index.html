@@ -1883,13 +1883,19 @@ button .ico{vertical-align:middle;margin-right:4px;}
             <div><strong>How search matching works:</strong> Buyers search by car brand, model, chassis no., engine no. and part category — your listing appears when their Mulkiya details match your fields. Fill <em>all</em> fields carefully for the best match accuracy.</div>
           </div>
           <div class="rfg2">
-            <div class="rfg"><label>Part Name <span class="req">*</span></label><input type="text" id="rf-pn" placeholder="e.g. Front Brake Pad Set"></div>
+            <div class="rfg">
+              <label>Part Name <span class="req">*</span></label>
+              <select id="rf-pname-select" onchange="rfPartNameChanged()" style="width:100%;margin-bottom:6px;"><option value="">Select from list, or type below</option><option value="__other__">Other (type manually)</option></select>
+              <input type="text" id="rf-pn" placeholder="e.g. Front Brake Pad Set">
+            </div>
             <div class="rfg"><label>OEM / Part Number <span class="req">*</span></label><input type="text" id="rf-oem" placeholder="e.g. 04465-60250"></div>
           </div>
           <div class="rfg2">
             <div class="rfg"><label>Category <span class="req">*</span></label>
               <select id="rf-pcat"><option value="">Select</option><option>Brakes</option><option>Suspension</option><option>Electrical</option><option>AC & Cooling</option><option>Steering</option><option>Body Parts</option><option>Filters</option><option>Engine</option><option>Tyres & Wheels</option></select>
             </div>
+          </div>
+          <div class="rfg2">
             <div class="rfg"><label>Condition <span class="req">*</span></label>
               <select id="rf-pcond"><option value="">Select</option><option>Used – Good condition</option><option>Used – Fair condition</option><option>New – Aftermarket</option><option>New – Genuine OEM</option></select>
             </div>
@@ -1930,14 +1936,13 @@ button .ico{vertical-align:middle;margin-right:4px;}
           </div>
           <div class="rfg2">
             <div class="rfg"><label>Part Serial / Batch No.</label><input type="text" id="rf-pserial" placeholder="e.g. SN-2024-XXXX or batch number"></div>
-            <div class="rfg"><label>Warranty</label>
+            <div class="rfg"><label>Warranty <span style="color:#e53e3e;">*</span></label>
               <div style="display:flex;gap:8px;">
-                <input type="number" id="rf-pwarranty-num" placeholder="e.g. 6" min="0" style="flex:1;">
+                <input type="number" id="rf-pwarranty-num" placeholder="e.g. 6" min="1" style="flex:1;">
                 <select id="rf-pwarranty-unit" style="flex:1;">
-                  <option value="">No warranty</option>
                   <option value="hours">Hour(s)</option>
                   <option value="days">Day(s)</option>
-                  <option value="months">Month(s)</option>
+                  <option value="months" selected>Month(s)</option>
                   <option value="years">Year(s)</option>
                 </select>
               </div>
@@ -1946,6 +1951,18 @@ button .ico{vertical-align:middle;margin-right:4px;}
           <div class="rfg2">
             <div class="rfg"><label>Your Price (AED) <span class="req">*</span></label><input type="number" id="rf-pprice" placeholder="e.g. 120"><div class="note" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px;">This is exactly what the buyer pays — PartSouq never adds a markup on top of your price.</div></div>
             <div class="rfg"><label>Stock Quantity</label><input type="number" id="rf-pqty" placeholder="e.g. 1" value="1"></div>
+          </div>
+          <div class="rfg2">
+            <div class="rfg"><label>Estimated Delivery Time <span class="req">*</span></label>
+              <div style="display:flex;gap:8px;">
+                <input type="number" id="rf-pdeltime-num" placeholder="e.g. 2" min="1" style="flex:1;">
+                <select id="rf-pdeltime-unit" style="flex:1;">
+                  <option value="hours">Hour(s)</option>
+                  <option value="days" selected>Day(s)</option>
+                </select>
+              </div>
+            </div>
+            <div class="rfg"><label>Delivery Fee (AED)</label><input type="number" id="rf-pdelfee" placeholder="e.g. 25, or leave blank if free"></div>
           </div>
           <div class="rfg"><label>Part Photos <span class="req">*</span></label>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
@@ -2951,6 +2968,16 @@ function switchPartnerType(t){
   $safe('card-seller',function(e){e.style.opacity=t==='seller'?'1':'0.5'});
   $safe('card-garage',function(e){e.style.opacity=t==='garage'?'1':'0.5'});
 }
+function rfPartNameChanged(){
+  var sel=$el('rf-pname-select');
+  var input=$el('rf-pn');
+  if(!sel||!input) return;
+  if(sel.value==='__other__'){
+    input.focus();
+  } else if(sel.value){
+    input.value=sel.value;
+  }
+}
 function openReg(t){
   pType=t||pType;
   $safe('rf-title',function(e){e.textContent=pType==='seller'?'Spare Part Supplier Registration':'Garage Partner Registration'});
@@ -2958,6 +2985,12 @@ function openReg(t){
   $safe('cpt-sp',function(e){e.classList.toggle('on',pType==='seller')});
   $safe('cpt-gr',function(e){e.classList.toggle('on',pType==='garage')});
   $safe('reg-form-wrap',function(e){e.classList.add('open')});
+  var sel=$el('rf-pname-select');
+  if(sel && sel.options.length<=2){
+    var otherOpt=sel.querySelector('option[value="__other__"]');
+    var optionsHtml=PART_NAME_OPTIONS.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+    if(otherOpt) otherOpt.insertAdjacentHTML('beforebegin', optionsHtml);
+  }
   rfStep(1);
   document.getElementById('reg-form-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -2985,38 +3018,71 @@ function rfStep(n){
     if(i===3&&n===3){$safe('rf-s3-seller',function(e){e.style.display=pType==='seller'?'block':'none'});$safe('rf-s3-garage',function(e){e.style.display=pType==='garage'?'block':'none'});}
   }
 }
-function rfSubmit(){
+async function rfSubmit(){
   var email=(($el('rf-email')||{}).value||'').trim();
   if(!email){showToast('Please enter your email address — it is required');return;}
   if(email.indexOf('@')===-1 || email.indexOf('.')===-1){showToast('Please enter a valid email address');return;}
+  var photos=window._rfPhotos||{};
   if(pType==='seller'){
     var ph4=document.getElementById('rf-ph4');
     if(!ph4||ph4.style.display!=='flex'){showToast('Please upload the Installed position photo — it is required');return;}
+    var priceVal=(($el('rf-pprice')||{}).value||'').trim();
+    if(!priceVal){showToast('Please enter your Price — it is required');return;}
+    var warVal=(($el('rf-pwarranty-num')||{}).value||'').trim();
+    if(!warVal){showToast('Please enter the Warranty — it is required');return;}
+    var delVal=(($el('rf-pdeltime-num')||{}).value||'').trim();
+    if(!delVal){showToast('Please enter the Estimated Delivery Time — it is required');return;}
+    var pnameVal=(($el('rf-pn')||{}).value||'').trim();
+    if(!pnameVal){showToast('Please select or type the Part Name — it is required');return;}
   }
   var btn=document.getElementById('rf-submit-btn');
   if(!btn){showToast('Submission error — please try again');return;}
   btn.disabled=true;btn.innerHTML='&#9696; Submitting…';
   var bizName=(pType==='seller'?($el('rf-biz')||{}).value:($el('rf-gnm')||{}).value)||(($el('rf-name')||{}).value)||'New Applicant';
+  var contactName=($el('rf-name')||{}).value||bizName;
   var wa=(($el('rf-cc')||{}).value||'')+' '+((($el('rf-wa')||{}).value)||'');
   var emirate=(($el('rf-em')||{}).value)||'';
-  var contactEmail=email;
-  var appId='APP-'+Math.floor(Math.random()*900+100);
-  partnerApps.unshift({
-    id:appId, name:bizName, type:pType, emirate:emirate, wa:wa.trim(),
-    submitted:'Just now', status:'pending',
-    identity:window._pendingPartnerIdentity, contactEmail:contactEmail
+
+  var payload={
+    applicant_type: pType, business_name: bizName, contact_name: contactName,
+    email: email, whatsapp: wa.trim(), emirate: emirate, status:'pending'
+  };
+  if(pType==='seller'){
+    var warUnit=($el('rf-pwarranty-unit')||{}).value||'months';
+    var warNum=($el('rf-pwarranty-num')||{}).value||'';
+    var delNum=($el('rf-pdeltime-num')||{}).value||'';
+    var delUnit=($el('rf-pdeltime-unit')||{}).value||'days';
+    payload.part_name=($el('rf-pn')||{}).value||null;
+    payload.car_brand=($el('rf-pbrand')||{}).value||null;
+    payload.car_model=($el('rf-pmodel')||{}).value||null;
+    payload.price=parseFloat(($el('rf-pprice')||{}).value)||null;
+    payload.warranty_value=warNum?parseInt(warNum):null;
+    payload.warranty_unit=warUnit;
+    payload.delivery_time=delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days'));
+    payload.delivery_fee=parseFloat(($el('rf-pdelfee')||{}).value)||0;
+    payload.main_photo_url=photos.partMain||null;
+    payload.oem_photo_url=photos.oemLabel||null;
+    payload.installed_photo_url=photos.installedPosition||null;
+  } else {
+    payload.operating_hours=($el('rf-ghours')||{}).value||null;
+    payload.message=($el('rf-gmsg')||{}).value||null;
+  }
+
+  var res=await sb.from('partner_applications').insert(payload).select().single();
+  if(res.error){
+    showToast('Could not submit application: '+res.error.message);
+    btn.disabled=false;btn.innerHTML='Submit Application';
+    return;
+  }
+  var appId=res.data.id.substring(0,8).toUpperCase();
+  $safe('rf-s3-nav',function(e){e.style.display='none'});
+  $safe('rf-ok-msg',function(e){
+    e.innerHTML='Your application reference number is <strong style="font-family:monospace;color:#00c47a;">'+appId+'</strong> — this is saved for real, please keep it for your records.<br><br>'
+      +(pType==='seller'
+        ?'Our team will review your application within 24–48 hours. You\'ll be contacted on WhatsApp — once approved, sign up with the same email above to activate your account.'
+        :'Your garage registration is under review. We\'ll contact you on WhatsApp within 24–48 hours — once approved, sign up with the same email above to activate your account.');
   });
-  updateAppsBadge();
-  setTimeout(function(){
-    $safe('rf-s3-nav',function(e){e.style.display='none'});
-    $safe('rf-ok-msg',function(e){
-      e.innerHTML='Your application reference number is <strong style="font-family:monospace;color:#00c47a;">'+appId+'</strong> — please save this for your records.<br><br>'
-        +(pType==='seller'
-          ?'Our team will review your application within 24–48 hours. You\'ll be contacted on WhatsApp.'
-          :'Your garage registration is under review. We\'ll contact you on WhatsApp within 24–48 hours with dashboard access.');
-    });
-    $safe('rf-ok',function(e){e.style.display='block'});
-  },1500);
+  $safe('rf-ok',function(e){e.style.display='block'});
 }
 function tp(el){el.classList.toggle('on');}
 function toggleCv(el){if(!el.classList.contains('dis'))el.classList.toggle('on');}
@@ -3024,19 +3090,23 @@ function fakeUp(id){var el=document.getElementById(id);if(el){el.style.display='
 /* Real photo upload for partner registration — works with either the
    camera or the gallery/file picker on mobile, since no `capture`
    attribute is forced (letting the OS show both options). */
-function rfUpload(input,confirmId,storeKey){
+async function rfUpload(input,confirmId,storeKey){
   var file=input.files[0];
   if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
+  var el=document.getElementById(confirmId);
+  try{
+    var compressed=await compressImage(file);
+    var path='applications/'+storeKey+'-'+Date.now()+'.jpg';
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
+    if(up.error) throw new Error(up.error.message);
+    var pub=sb.storage.from('listing-photos').getPublicUrl(path);
     window._rfPhotos=window._rfPhotos||{};
-    window._rfPhotos[storeKey]=e.target.result;
-    var el=document.getElementById(confirmId);
+    window._rfPhotos[storeKey]=pub.data.publicUrl;
     if(el){el.style.display='flex';el.style.alignItems='center';}
     showToast('Photo uploaded');
-  };
-  reader.onerror=function(){showToast('Could not read that file — please try another photo');};
-  reader.readAsDataURL(file);
+  }catch(err){
+    showToast('Upload failed: '+err.message);
+  }
 }
 
 function rfLoadModels(){
@@ -3825,6 +3895,7 @@ function renderPDPage(page){
       h+=sel('Category',['Brakes','Engine','AC & Cooling','Suspension','Electrical','General Maintenance','Body Work','Tyres & Wheels'],true,'gs-cat');
       h+='<div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Estimated Time *</label><div style="display:flex;gap:10px;"><input type="number" id="gs-time-num" placeholder="e.g. 3" min="0" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;background:#fff;color:#0f172a;"><select id="gs-time-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;background:#fff;color:#0f172a;"><option value="hours">Hour(s)</option><option value="days">Day(s)</option></select></div></div>';
       h+=inp('Price (AED)','e.g. 250',true,'gs-price','number');
+      h+='<div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Warranty on Labor *</label><div style="display:flex;gap:10px;"><input type="number" id="gs-war-num" placeholder="e.g. 3" min="1" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;background:#fff;color:#0f172a;"><select id="gs-war-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;background:#fff;color:#0f172a;"><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months" selected>Month(s)</option><option value="years">Year(s)</option></select></div></div>';
       h+='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Description</label><textarea id="gs-desc" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;font-family:inherit;" placeholder="What\u2019s included, parts used, warranty on labor..."></textarea></div>';
       h+='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:8px;">Service Photo *</label>';
       h+='<label class="upload-area" style="position:relative;display:block;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#00c47a;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><div class="upload-area-txt"><strong>Choose Photo</strong> \u2014 your garage, bay, or the service in action</div><input type="file" id="gs-photo-input" accept="image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" onchange="gsPhotoSelected(this)"></label>';
@@ -4053,10 +4124,13 @@ async function pdSubmitService(){
   var timeNum=($el('gs-time-num')||{}).value||'';
   var timeUnit=($el('gs-time-unit')||{}).value||'hours';
   var price=($el('gs-price')||{}).value||'';
+  var warNum=($el('gs-war-num')||{}).value||'';
+  var warUnit=($el('gs-war-unit')||{}).value||'';
   var desc=($el('gs-desc')||{}).value||'';
   var photo=window._gsPhoto;
   if(!name||!price){showToast('Please fill in at least Service Name and Price');return;}
   if(!timeNum){showToast('Please enter an Estimated Time');return;}
+  if(!warNum){showToast('Please enter the Warranty on Labor — required for every service');return;}
   if(!photo){showToast('A service photo is required');return;}
   var btn=$el('gs-submit-btn');
   if(btn){btn.disabled=true;btn.textContent='Uploading photo…';}
@@ -4080,6 +4154,8 @@ async function pdSubmitService(){
     price: parseFloat(price)||0,
     estimated_time_value: parseInt(timeNum)||null,
     estimated_time_unit: timeUnit,
+    warranty_value: parseInt(warNum)||null,
+    warranty_unit: warUnit||null,
     photo_url: photoUrl,
     status: 'pending'
   });
@@ -4607,7 +4683,7 @@ function renderPM(){
     h+='<div class="ck-g2">'+finp('Your Price (AED)','185',true,'','pm-price')+finp('Delivery Fee (AED)','25',true,'','pm-delfee')+'</div>';
     h+='<div class="ck-g2">'+finp('Estimated Delivery Time','e.g. 1-3 days',true,'Your own honest estimate — shown to buyers on this listing','pm-deltime')+'<div><label style="display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Delivery Charge</label><select id="pm-delivery-type" class="ck-inp" style="cursor:pointer;margin-bottom:0;"><option value="included">Included in item price</option><option value="separate">Charged separately (fee above)</option></select></div></div>';
     h+=finp('Also Fits (optional)','e.g. Also fits Prado 150, HiLux 2010-2018',false,'','pm-alsofits');
-    h+='<div style="margin-bottom:14px;">'+lbl('Warranty',true)+'<div style="display:flex;gap:8px;"><input type="number" id="pm-war-num" class="ck-inp" placeholder="e.g. 6" min="0" style="margin-bottom:0;flex:1;"><select id="pm-war-unit" class="ck-inp" style="cursor:pointer;margin-bottom:0;flex:1;"><option value="">No warranty</option><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months">Month(s)</option><option value="years">Year(s)</option></select></div></div>';
+    h+='<div style="margin-bottom:14px;">'+lbl('Warranty',true)+'<div style="display:flex;gap:8px;"><input type="number" id="pm-war-num" class="ck-inp" placeholder="e.g. 6" min="1" style="margin-bottom:0;flex:1;"><select id="pm-war-unit" class="ck-inp" style="cursor:pointer;margin-bottom:0;flex:1;"><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months" selected>Month(s)</option><option value="years">Year(s)</option></select></div></div>';
     h+='<div style="background:#fff8e6;border:1px solid #f5c842;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#7a4f00;line-height:1.6;display:flex;gap:8px;align-items:flex-start;"><input type="checkbox" style="margin-top:2px;accent-color:#00c47a;flex-shrink:0;"><div>I accept PartSouq return and listing policy. Real photos of actual part required. PartSouq reviews all listings before going live. <strong>No acceptance = no listing.</strong></div></div>';
     h+='<div style="display:flex;gap:8px;"><button class="ck-back" style="width:auto;padding:12px 18px;margin:0;" onclick="goPM(3,2)">&#8592; Back</button><button class="ck-btn" style="flex:1;margin:0;" onclick="pmDone()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span> Submit Application</button></div>';
     h+='</div>';
@@ -4738,7 +4814,7 @@ function renderPage(page){
   else if(page==='pending') c.innerHTML=renderPending();
   else if(page==='listings'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderListings(); }
   else if(page==='addlisting'){c.innerHTML=renderDashboard();openGenericModal('listing-modal');populateAdminSellerDropdown();editingListingId=null;$safe('lm-name-wrap',function(e){e.innerHTML=partNameFieldHtml('lm-name','');});}
-  else if(page==='applications') c.innerHTML=renderApplications();
+  else if(page==='applications'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderApplications(); }
   else if(page==='orders'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderOrders(); }
   else if(page==='disputes'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderDisputes(); }
   else if(page==='discounts') c.innerHTML=renderDiscounts();
@@ -6786,7 +6862,7 @@ function renderPage(page){
   else if(page==='pending') c.innerHTML=renderPending();
   else if(page==='listings'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderListings(); }
   else if(page==='addlisting'){c.innerHTML=renderDashboard();openGenericModal('listing-modal');populateAdminSellerDropdown();editingListingId=null;$safe('lm-name-wrap',function(e){e.innerHTML=partNameFieldHtml('lm-name','');});}
-  else if(page==='applications') c.innerHTML=renderApplications();
+  else if(page==='applications'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderApplications(); }
   else if(page==='orders'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderOrders(); }
   else if(page==='disputes'){ c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>'; renderDisputes(); }
   else if(page==='discounts') c.innerHTML=renderDiscounts();
@@ -7096,69 +7172,56 @@ async function saveListing(mode){
 
 function statusBadge(s){var map={delivered:'<span class="badge badge-g"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Delivered</span>',in_transit:'<span class="badge badge-b"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span> In Transit</span>',confirmed:'<span class="badge badge-o"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> Confirmed</span>',dispute:'<span class="badge badge-r"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="3" width="2" height="13" rx="1"/><rect x="11" y="19" width="2" height="2" rx="1"/></svg></span> Dispute</span>',pending:'<span class="badge badge-o">Pending</span>',active:'<span class="badge badge-g">Active</span>',draft:'<span class="badge badge-gr">Draft</span>',rejected:'<span class="badge badge-r">Rejected</span>',expired:'<span class="badge badge-gr">Expired</span>',open:'<span class="badge badge-r">Open</span>',escalated:'<span class="badge badge-r" style="background:#fee2e2;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0-4 5-4 10a4 4 0 0 0 8 0c0-5-4-10-4-10z" opacity=".4"/><path d="M12 8c0 0-2 2.5-2 5a2 2 0 0 0 4 0c0-2.5-2-5-2-5z"/></svg></span> Escalated</span>',review:'<span class="badge badge-o">Under Review</span>',resolved:'<span class="badge badge-g">Resolved</span>'};return map[s]||'<span class="badge badge-gr">'+s+'</span>';}
 
-function renderApplications(){
-  var h='<div class="sec-hdr"><h2>Partner Applications ('+partnerApps.length+')</h2></div>';
-  h+='<div style="background:#fef3c7;border:1.5px solid #f5d67a;border-radius:9px;padding:11px 14px;font-size:13px;color:#7a4f00;margin-bottom:16px;line-height:1.6;"><strong>&#9888; Demo data</strong> — this section is not yet connected to the real database. Nothing here reflects real accounts or affects them.</div>';
-  h+='<div class="card"><table><thead><tr><th>ID</th><th>Business Name</th><th>Type</th><th>Emirate</th><th>WhatsApp</th><th>Sign-in Identity</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead><tbody>';
-  partnerApps.forEach(function(a){
-    var idCell = a.status==='approved' && a.partsouqId
-      ? '<span style="font-family:monospace;font-weight:700;color:#00a064;">'+a.partsouqId+'</span>'
-      : '<span style="color:#888;font-size:12px;">'+a.id+'</span>';
-    var identityCell = a.identity
-      ? '<span style="font-size:11.5px;">Used '+(a.identity.provider==='google'?'Google':'Apple')+' at application &middot; '+a.identity.email+'<br><span style="color:#aaa;">(still must activate with ID)</span></span>'
-      : '<span style="font-size:11.5px;color:#aaa;">No sign-in used at application</span>';
+async function renderApplications(){
+  var c=$el('content'); if(!c) return;
+  var res=await sb.from('partner_applications').select('*').order('created_at',{ascending:false});
+  var apps=(res.data)||[];
+  var h='<div class="sec-hdr"><h2>Partner Applications ('+apps.length+')</h2></div>';
+  h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:16px;line-height:1.6;">Real applications, saved permanently. Approving here doesn\'t create their login automatically — contact them on WhatsApp to complete <strong>Quick Sign Up</strong> with the same email they applied with.</div>';
+  if(apps.length===0){
+    h+='<div class="card" style="padding:40px;text-align:center;color:#888;font-size:13.5px;">No applications yet.</div>';
+    c.innerHTML=h;
+    return;
+  }
+  h+='<div class="card"><table><thead><tr><th>Business / Contact</th><th>Type</th><th>Emirate</th><th>WhatsApp</th><th>Email</th><th>First Part</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+  apps.forEach(function(a){
+    var partInfo = a.applicant_type==='seller'
+      ? (a.part_name?esc(a.part_name)+' — AED '+(a.price||'—'):'—')
+      : (a.operating_hours?esc(a.operating_hours):'—');
+    var dateStr=new Date(a.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
     var actionCell;
     if(a.status==='approved'){
-      var acct=DEMO_ACCOUNTS.find(function(u){return u.partsouqId===a.partsouqId;});
-      if(acct&&acct.activated){
-        actionCell = '<span style="font-size:12px;color:#00a064;font-weight:700;">&#10003; Activated \u2014 signs in with '+(acct.socialIdentity?(acct.socialIdentity.provider==='google'?'Google':'Apple'):'their linked account')+'</span>';
-      } else {
-        actionCell = '<div style="font-size:11.5px;background:#fff8e6;border:1px solid #f5c842;border-radius:6px;padding:6px 8px;line-height:1.5;">'
-          +'<div>Not yet activated. Send this ID to the partner on WhatsApp:</div>'
-          +'<div style="font-family:monospace;font-weight:700;font-size:13px;color:#00a064;margin:2px 0;">'+a.partsouqId+'</div>'
-          +'<div style="color:#92400e;">They sign in with Google/Apple, then enter this ID once to activate. Not needed again after that.</div></div>';
-      }
+      actionCell = '<div style="font-size:11.5px;background:#e6faf3;border:1px solid #c8eedd;border-radius:6px;padding:6px 8px;line-height:1.5;color:#065f46;"><strong>Approved</strong> — tell them to Quick Sign Up with: '+esc(a.email)+'</div>';
     } else if(a.status==='rejected'){
       actionCell = '<span style="font-size:12px;color:#e53e3e;font-weight:700;">Rejected</span>';
     } else {
-      actionCell = '<div class="td-actions"><button class="btn btn-g btn-sm" onclick="approvePartnerApp(\''+a.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-re btn-sm" onclick="rejectPartnerApp(\''+a.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>';
+      actionCell = '<div class="td-actions"><button class="btn btn-g btn-sm" onclick="approvePartnerApp(\''+a.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-re btn-sm" onclick="rejectPartnerApp(\''+a.id+'\')" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>';
     }
-    h+='<tr><td>'+idCell+'</td><td class="fw7">'+a.name+'</td><td><span class="badge '+(a.type==='seller'?'badge-b':'badge-o')+'">'+(a.type==='seller'?'Seller':'Garage')+'</span></td><td>'+a.emirate+'</td><td style="font-size:12.5px;font-family:monospace;">'+a.wa+'</td><td>'+identityCell+'</td><td style="font-size:12px;color:#888;">'+a.submitted+'</td><td>'+statusBadge(a.status)+'</td><td>'+actionCell+'</td></tr>';
+    h+='<tr><td class="fw7">'+esc(a.business_name||a.contact_name||'—')+'</td>';
+    h+='<td><span class="badge '+(a.applicant_type==='seller'?'badge-b':'badge-o')+'">'+(a.applicant_type==='seller'?'Seller':'Garage')+'</span></td>';
+    h+='<td>'+esc(a.emirate||'—')+'</td>';
+    h+='<td style="font-size:12.5px;font-family:monospace;">'+esc(a.whatsapp||'—')+'</td>';
+    h+='<td style="font-size:12px;">'+esc(a.email)+'</td>';
+    h+='<td style="font-size:12px;">'+partInfo+'</td>';
+    h+='<td style="font-size:12px;color:#888;">'+dateStr+'</td>';
+    h+='<td>'+statusBadge(a.status)+'</td>';
+    h+='<td>'+actionCell+'</td></tr>';
   });
   h+='</tbody></table></div>';
-  return h;
+  c.innerHTML=h;
 }
-
-/* Approve/Reject partner applications: generates the unique PartSouq ID.
-   That ID is ALWAYS the one-time activation gate — the partner signs in
-   with Google/Apple, and (the first time only) enters this ID to claim
-   the account and permanently link that identity to it. This applies
-   even if they already used Google/Apple during the application itself —
-   approval is the only thing that should ever grant access, never the
-   application step alone. After first activation, Google/Apple sign-in
-   alone is enough, and the code can't be reused to claim a second identity. */
-function approvePartnerApp(appId){
-  var a=partnerApps.find(function(x){return x.id===appId;});
-  if(!a||(a.status!=='pending'&&a.status!=='review')){showToast('Application already processed');return;}
-  var newId=genPartsouqId(a.type);
-  var account={
-    name:a.name, phone:a.wa, email:a.contactEmail||'', pw:'', role:a.type,
-    partsouqId:newId, cycleStart:Date.now(), manualBlocked:false,
-    socialIdentity:null, activated:false, appliedWithIdentity:a.identity||null
-  };
-  DEMO_ACCOUNTS.push(account);
-  a.status='approved'; a.partsouqId=newId;
-  showToast(a.name+' approved \u2014 PartSouq ID '+newId+'. Send this ID to the partner on WhatsApp — they\'ll enter it once, after signing in with Google/Apple, to activate their account.');
-  updateAppsBadge();
-  renderPage('applications');
+async function approvePartnerApp(id){
+  var res=await sb.from('partner_applications').update({status:'approved'}).eq('id',id);
+  if(res.error){showToast('Could not approve: '+res.error.message);return;}
+  showToast('Application approved — now contact them on WhatsApp to complete Quick Sign Up');
+  renderApplications();
 }
-function rejectPartnerApp(appId){
-  var a=partnerApps.find(function(x){return x.id===appId;});
-  if(!a){return;}
-  a.status='rejected';
-  showToast('Application from '+a.name+' rejected');
-  updateAppsBadge();
-  renderPage('applications');
+async function rejectPartnerApp(id){
+  if(!confirm('Reject this application?')) return;
+  var res=await sb.from('partner_applications').update({status:'rejected'}).eq('id',id);
+  if(res.error){showToast('Could not reject: '+res.error.message);return;}
+  showToast('Application rejected');
+  renderApplications();
 }
 
 /* ══ PARTNER BILLING — ADMIN VIEW ══
