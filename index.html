@@ -2903,9 +2903,17 @@ function openMdl(id){
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;">';
   // LEFT
   html+='<div style="padding:24px;">';
-  html+='<div style="height:240px;border-radius:12px;overflow:hidden;background:#f1f5f9;margin-bottom:16px;">';
-  html+='<img src="'+p.img+'" style="width:100%;height:100%;object-fit:cover;">';
+  var galleryImgs = (p.imgs && p.imgs.length) ? p.imgs : [p.img];
+  html+='<div style="height:240px;border-radius:12px;overflow:hidden;background:#f1f5f9;margin-bottom:'+(galleryImgs.length>1?'8px':'16px')+';">';
+  html+='<img id="mdl-main-img" src="'+galleryImgs[0]+'" style="width:100%;height:100%;object-fit:cover;">';
   html+='</div>';
+  if(galleryImgs.length>1){
+    html+='<div style="display:flex;gap:8px;margin-bottom:16px;">';
+    galleryImgs.forEach(function(src,gi){
+      html+='<div onclick="var m=document.getElementById(\'mdl-main-img\');if(m)m.src=\''+esc(src)+'\';" style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;cursor:pointer;border:2px solid '+(gi===0?'#00c47a':'transparent')+';flex-shrink:0;"><img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover;"></div>';
+    });
+    html+='</div>';
+  }
   html+='<div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Part Specifications</div>';
   html+=row('OEM / Part No.',p.oem);
   html+=row('Condition',p.cond);
@@ -3647,47 +3655,9 @@ function renderPDPage(page){
 
 
     if(isSeller){
-      h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">';
-      h+=pdStat('fas fa-boxes','Active Listings','3','2 pending review','#3b82f6');
-      h+=pdStat('fas fa-shopping-bag','Orders Received','7','5 delivered, 2 pending','#00c47a');
-      h+=pdStat('fas fa-eye','Total Views','113','Across all listings','#f59e0b');
-      h+='</div>';
-      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">';
-      // Recent orders
-      h+='<div style="background:#fff;border-radius:12px;padding:18px;border:1px solid #e2e8f0;">';
-      h+='<div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">Recent Orders <span data-pdpage="orders" style="font-size:12px;font-weight:600;color:#00c47a;cursor:pointer;">View all</span></div>';
-      var sellerOrders=[
-        {id:'PS-1001',part:'Bosch Brake Pad Set',buyer:'Ahmed',amount:245,status:'Pending Admin'},
-        {id:'PS-0987',part:'KYB Shock Absorber',buyer:'Khalid',amount:410,status:'Dispatched'},
-        {id:'PS-0965',part:'Denso AC Compressor',buyer:'Sara',amount:915,status:'Delivered'},
-      ];
-      sellerOrders.forEach(function(o){
-        var sc=o.status==='Delivered'?'#065f46':o.status==='Dispatched'?'#1e40af':'#92400e';
-        var sb=o.status==='Delivered'?'#e6faf3':o.status==='Dispatched'?'#dbeafe':'#fef3c7';
-        h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;">';
-        h+='<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;">'+o.part+'</div>';
-        h+='<div style="font-size:11.5px;color:#888;">'+o.id+' &middot; '+o.buyer+' &middot; AED '+o.amount+'</div></div>';
-        h+='<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:'+sb+';color:'+sc+';">'+o.status+'</span>';
-        h+='</div>';
-      });
-      h+='</div>';
-      // Top listings
-      h+='<div style="background:#fff;border-radius:12px;padding:18px;border:1px solid #e2e8f0;">';
-      h+='<div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">Top Listings <span data-pdpage="listings" style="font-size:12px;font-weight:600;color:#00c47a;cursor:pointer;">View all</span></div>';
-      var topList=[
-        {title:'Denso AC Compressor',views:67,orders:5,status:'Active'},
-        {title:'Bosch Brake Pad Set',views:34,orders:2,status:'Active'},
-        {title:'KYB Shock Absorber',views:12,orders:0,status:'Pending'},
-      ];
-      topList.forEach(function(l){
-        h+='<div style="padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">';
-        h+='<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;">'+l.title+'</div>';
-        h+='<div style="font-size:11.5px;color:#888;">'+l.views+' views &middot; '+l.orders+' orders</div></div>';
-        h+='<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:'+(l.status==='Active'?'#e6faf3':'#fef3c7')+';color:'+(l.status==='Active'?'#065f46':'#92400e')+';">'+l.status+'</span>';
-        h+='</div>';
-      });
-      h+='</div>';
-      h+='</div>';
+      h+='<div id="seller-overview-stats"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">'+pdStat('fas fa-boxes','Active Listings','—','Loading…','#3b82f6')+pdStat('fas fa-shopping-bag','Orders Received','—','Loading…','#00c47a')+pdStat('fas fa-money-bill-wave','Total Revenue','—','Loading…','#f59e0b')+'</div></div>';
+      h+='<div id="seller-overview-widgets"></div>';
+      setTimeout(function(){loadSellerOverview(pdStat);}, 0);
       // COD reminder
       h+='<div style="background:#e6faf3;border:1.5px solid #c8eedd;border-radius:10px;padding:14px 16px;font-size:13px;color:#065f46;line-height:1.65;">';
       h+='<strong>&#128181; Cash on Delivery Reminder:</strong> PartSouq will forward approved orders to you with the buyer Mulkiya and delivery details. Dispatch only after admin approval.';
@@ -4011,6 +3981,67 @@ function compressImage(file, maxDim, quality){
 }
 /* ══ SELLER ORDERS — real, with status progression ══ */
 /* ══ SELLER'S OWN "MY LISTINGS" — real data, real edit ══ */
+/* ══ SELLER OVERVIEW — real stats, recent orders, top listings (no fake demo numbers) ══
+   Note: there is no page-view tracking anywhere in the schema, so unlike the old
+   demo widget this does not show a "Total Views" stat — it's replaced with real
+   revenue, and "Top Listings" is ranked by real order count instead of fake views. */
+async function loadSellerOverview(pdStat){
+  var statsEl=$el('seller-overview-stats'), widgetsEl=$el('seller-overview-widgets');
+  if(!statsEl || !currentUser || !currentUser.id) return;
+  var listRes=await sb.from('listings').select('*').eq('seller_id',currentUser.id);
+  var listings=(listRes.data)||[];
+  var orderRes=await sb.from('orders').select('*').eq('seller_id',currentUser.id).order('created_at',{ascending:false});
+  var orders=(orderRes.data)||[];
+  var activeCount=listings.filter(function(l){return l.status==='active';}).length;
+  var pendingCount=listings.filter(function(l){return l.status==='pending';}).length;
+  var deliveredCount=orders.filter(function(o){return o.status==='delivered';}).length;
+  var cancelledCount=orders.filter(function(o){return o.status==='cancelled';}).length;
+  var pendingOrderCount=orders.length-deliveredCount-cancelledCount;
+  var revenue=orders.filter(function(o){return o.status==='delivered';}).reduce(function(sum,o){return sum+(o.price||0);},0);
+  statsEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">'
+    +pdStat('fas fa-boxes','Active Listings',activeCount+'',pendingCount+' pending review','#3b82f6')
+    +pdStat('fas fa-shopping-bag','Orders Received',orders.length+'',deliveredCount+' delivered, '+pendingOrderCount+' pending','#00c47a')
+    +pdStat('fas fa-money-bill-wave','Total Revenue','AED '+revenue,'From delivered orders','#f59e0b')
+    +'</div>';
+  var ORDER_LABELS={pending_admin:['Pending Admin','#fef3c7','#92400e'],confirmed:['Confirmed','#dbeafe','#1e40af'],out_for_delivery:['Out for Delivery','#dbeafe','#1e40af'],delivered:['Delivered','#e6faf3','#065f46'],cancelled:['Cancelled','#fee2e2','#b91c1c']};
+  var h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">';
+  h+='<div style="background:#fff;border-radius:12px;padding:18px;border:1px solid #e2e8f0;">';
+  h+='<div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">Recent Orders <span data-pdpage="orders" style="font-size:12px;font-weight:600;color:#00c47a;cursor:pointer;">View all</span></div>';
+  if(orders.length===0){
+    h+='<div style="text-align:center;color:#888;padding:20px 0;font-size:13px;">No orders yet.</div>';
+  } else {
+    orders.slice(0,3).forEach(function(o){
+      var lbl=ORDER_LABELS[o.status]||['—','#f1f5f9','#555'];
+      h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;">';
+      h+='<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;">'+esc(o.part_name)+'</div>';
+      h+='<div style="font-size:11.5px;color:#888;">'+esc((o.id||'').substring(0,8))+' &middot; AED '+o.price+'</div></div>';
+      h+='<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:'+lbl[1]+';color:'+lbl[2]+';">'+lbl[0]+'</span>';
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+  var countByListing={};
+  orders.forEach(function(o){ if(o.listing_id){ countByListing[o.listing_id]=(countByListing[o.listing_id]||0)+1; } });
+  var LISTING_LABELS={active:['Active','#e6faf3','#065f46'],pending:['Pending','#fef3c7','#92400e'],rejected:['Rejected','#fee2e2','#b91c1c']};
+  var topListings=listings.slice().sort(function(a,b){return (countByListing[b.id]||0)-(countByListing[a.id]||0);}).slice(0,3);
+  h+='<div style="background:#fff;border-radius:12px;padding:18px;border:1px solid #e2e8f0;">';
+  h+='<div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">Top Listings <span data-pdpage="listings" style="font-size:12px;font-weight:600;color:#00c47a;cursor:pointer;">View all</span></div>';
+  if(topListings.length===0){
+    h+='<div style="text-align:center;color:#888;padding:20px 0;font-size:13px;">No listings yet.</div>';
+  } else {
+    topListings.forEach(function(l){
+      var lbl=LISTING_LABELS[l.status]||['—','#f1f5f9','#555'];
+      var oc=countByListing[l.id]||0;
+      h+='<div style="padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">';
+      h+='<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0f172a;">'+esc(l.name)+'</div>';
+      h+='<div style="font-size:11.5px;color:#888;">'+oc+' order'+(oc===1?'':'s')+'</div></div>';
+      h+='<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:'+lbl[1]+';color:'+lbl[2]+';">'+lbl[0]+'</span>';
+      h+='</div>';
+    });
+  }
+  h+='</div></div>';
+  widgetsEl.innerHTML=h;
+}
 async function loadSellerMyListings(){
   var el=$el('seller-my-listings-container'); if(!el || !currentUser || !currentUser.id) return;
   var res=await sb.from('listings').select('*').eq('seller_id',currentUser.id).order('created_at',{ascending:false});
@@ -4326,10 +4357,12 @@ async function loadRealListings(){
     window._realListingUUIDs[numericId] = row.id;
     var sellerName = (row.profiles && row.profiles.name) ? row.profiles.name : 'Verified Seller';
     var compat = [row.car_brand, row.car_model].filter(Boolean).join(' ') || 'Multiple vehicles — see description';
+    var galleryImgs = [row.photo_front_url||row.main_photo_url, row.photo_side_url, row.photo_top_url, row.photo_back_url].filter(Boolean);
     PRODS.push({
       id: numericId, _real: true, realId: row.id, sellerId: row.seller_id,
       title: row.name, brand: sellerName, cat: row.category || 'Parts',
       img: row.main_photo_url || 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=80&auto=format&fit=crop',
+      imgs: galleryImgs.length ? galleryImgs : null,
       compat: compat, price: row.price, was: row.price, rating: 0, rev: 0,
       ver: true, cond: row.condition || 'See listing', em: (row.profiles && row.profiles.emirate) || '',
       del: row.delivery_time || 'Contact seller', oem: row.oem, warranty: (row.warranty_value ? row.warranty_value+' '+row.warranty_unit : 'No warranty'),
@@ -6997,65 +7030,71 @@ function statCard(icon,iconBg,iconColor,n,label,change,changeUp,colorClass){
     +'</div>';
 }
 
-function renderDashboard(){
+/* ══ ADMIN DASHBOARD — real stats/orders/pending queue (replaces old in-memory
+   demo widgets that never touched Supabase; approve/reject here now call the
+   same *Real functions as the Listings page, so they actually persist) ══ */
+async function renderDashboard(){
+  var c=$el('content'); if(!c) return;
+  c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>';
+  var listRes=await sb.from('listings').select('*, profiles(name)').order('created_at',{ascending:false});
+  var listings=(listRes.data)||[];
+  window._adminListings=listings;
+  var orderRes=await sb.from('orders').select('*, buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)').order('created_at',{ascending:false});
+  var orders=(orderRes.data)||[];
+  var partnerRes=await sb.from('profiles').select('id',{count:'exact',head:true}).in('role',['seller','garage']);
+  var partnerCount=partnerRes.count||0;
+  var pendingListingsReal=listings.filter(function(l){return l.status==='pending';});
+  var activeListingsCount=listings.filter(function(l){return l.status==='active';}).length;
+  var revenue=orders.filter(function(o){return o.status==='delivered';}).reduce(function(sum,o){return sum+(o.price||0);},0);
+  var ORDER_LABELS={pending_admin:'Pending Admin',confirmed:'Confirmed',out_for_delivery:'Out for Delivery',delivered:'Delivered',cancelled:'Cancelled'};
   var h='<div class="stat-grid">';
-  h+=statCard('fa-clock','#fef3c7','#92400e',pendingOrders.length+'','Pending Orders','Awaiting Review',false,'o');
-  h+=statCard('fa-shopping-bag','#dcfce7','#15803d','AED 48,320','Revenue (MTD)','+18%',true,'g');
-  h+=statCard('fa-list','#dbeafe','#1e40af','1,284','Active Listings','+32',true,'b');
-  h+=statCard('fa-users','#fef3c7','#92400e','218','Verified Partners','+6',true,'o');
+  h+=statCard('fa-clock','#fef3c7','#92400e',pendingListingsReal.length+'','Pending Listings','Awaiting Review',false,'o');
+  h+=statCard('fa-shopping-bag','#dcfce7','#15803d','AED '+revenue,'Revenue (Delivered)','',true,'g');
+  h+=statCard('fa-list','#dbeafe','#1e40af',activeListingsCount+'','Active Listings','',true,'b');
+  h+=statCard('fa-users','#fef3c7','#92400e',partnerCount+'','Verified Partners','',true,'o');
   h+='</div>';
-  // Recent orders
   h+='<div class="grid2">';
   h+='<div class="card"><div class="card-hdr"><h3>Recent Orders</h3><a href="#" onclick="showPage(\'orders\',null)" style="font-size:12.5px;color:var(--g);">View all →</a></div>';
   h+='<table><thead><tr><th>Order</th><th>Part</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
-  allOrders.slice(0,5).forEach(function(o){h+='<tr><td class="fw7">'+o.id+'</td><td>'+o.part+'</td><td class="fw7">'+o.amount+'</td><td>'+statusBadge(o.status)+'</td></tr>';});
+  if(orders.length===0){ h+='<tr><td colspan="4" style="text-align:center;color:#888;padding:16px;">No orders yet.</td></tr>'; }
+  orders.slice(0,5).forEach(function(o){h+='<tr><td class="fw7" style="font-family:monospace;font-size:12px;">'+esc((o.id||'').substring(0,8))+'</td><td>'+esc(o.part_name)+'</td><td class="fw7">AED '+o.price+'</td><td>'+statusBadge(ORDER_LABELS[o.status]||o.status)+'</td></tr>';});
   h+='</tbody></table></div>';
-  // Pending approvals
-  h+='<div class="card"><div class="card-hdr"><h3>Pending Approvals <span class="sb-badge" style="font-size:12px;padding:3px 8px;background:var(--re);color:#fff;border-radius:10px;margin-left:6px;">'+pendingListings.length+'</span></h3><button class="btn btn-g btn-sm" onclick="showPage(\'pending\',null)">Review All</button></div>';
+  h+='<div class="card"><div class="card-hdr"><h3>Pending Approvals <span class="sb-badge" style="font-size:12px;padding:3px 8px;background:var(--re);color:#fff;border-radius:10px;margin-left:6px;">'+pendingListingsReal.length+'</span></h3><button class="btn btn-g btn-sm" onclick="showPage(\'pending\',null)">Review All</button></div>';
   h+='<table><thead><tr><th>Part</th><th>Seller</th><th>Price</th><th>Action</th></tr></thead><tbody>';
-  pendingListings.slice(0,5).forEach(function(l){h+='<tr><td><div class="fw7" style="font-size:13px;">'+l.name+'</div><div style="font-size:11.5px;color:#888;">'+l.oem+' · '+l.cat+'</div></td><td style="font-size:12.5px;">'+l.seller+'</td><td class="fw7">'+l.price+'</td><td><div class="td-actions"><button class="btn btn-g btn-sm" onclick="approveListing(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span></button><button class="btn btn-re btn-sm" onclick="showToast(\'Listing rejected\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></td></tr>';});
+  if(pendingListingsReal.length===0){ h+='<tr><td colspan="4" style="text-align:center;color:#888;padding:16px;">Nothing waiting for review.</td></tr>'; }
+  pendingListingsReal.slice(0,5).forEach(function(l){
+    var sellerName=(l.profiles && l.profiles.name)?l.profiles.name:'Unknown';
+    h+='<tr><td><div class="fw7" style="font-size:13px;">'+esc(l.name)+'</div><div style="font-size:11.5px;color:#888;">'+esc(l.oem||'')+' · '+esc(l.category||'')+'</div></td><td style="font-size:12.5px;">'+esc(sellerName)+'</td><td class="fw7">AED '+l.price+'</td><td><div class="td-actions"><button class="btn btn-g btn-sm" onclick="approveListingReal(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span></button><button class="btn btn-re btn-sm" onclick="rejectListingReal(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></td></tr>';
+  });
   h+='</tbody></table></div></div>';
-  return h;
+  c.innerHTML=h;
 }
 
-function renderPending(){
-  var h='<div class="sec-hdr"><h2>Pending Approval ('+pendingListings.length+')</h2><button class="btn btn-g" onclick="addListing()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Listing</button></div>';
-  h+='<div class="card"><table><thead><tr><th>ID</th><th>Part Name</th><th>OEM</th><th>Category</th><th>Compatible Car</th><th>Seller</th><th>Price</th><th>Submitted</th><th>Action</th></tr></thead><tbody>';
-  if(pendingListings.length===0){
-    h+='<tr><td colspan="9" style="text-align:center;color:#888;padding:24px;">No listings waiting for review.</td></tr>';
+async function renderPending(){
+  var c=$el('content'); if(!c) return;
+  c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>';
+  var res=await sb.from('listings').select('*, profiles(name)').eq('status','pending').order('created_at',{ascending:false});
+  var pending=(res.data)||[];
+  var h='<div class="sec-hdr"><h2>Pending Approval ('+pending.length+')</h2><button class="btn btn-g" onclick="addListing()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Listing</button></div>';
+  h+='<div class="card"><table><thead><tr><th>Photos</th><th>Part Name</th><th>OEM</th><th>Category</th><th>Compatible Car</th><th>Seller</th><th>Price</th><th>Action</th></tr></thead><tbody>';
+  if(pending.length===0){
+    h+='<tr><td colspan="8" style="text-align:center;color:#888;padding:24px;">No listings waiting for review.</td></tr>';
   }
-  pendingListings.forEach(function(l){
-    h+='<tr><td style="font-size:12px;color:#888;">'+l.id+'</td>';
-    h+='<td class="fw7">'+l.name+'</td>';
-    h+='<td style="font-family:monospace;font-size:12.5px;">'+l.oem+'</td>';
-    h+='<td><span class="badge badge-b">'+l.cat+'</span></td>';
-    h+='<td style="font-size:12.5px;">'+l.car+'</td>';
-    h+='<td style="font-size:12.5px;">'+l.seller+'</td>';
-    h+='<td class="fw7">'+l.price+'</td>';
-    h+='<td style="font-size:12px;color:#888;">'+l.submitted+'</td>';
-    h+='<td><div class="td-actions"><button class="btn btn-g btn-sm" onclick="approveListing(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-out btn-sm" onclick="rejectPendingListing(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></td></tr>';
+  pending.forEach(function(l){
+    var sellerName=(l.profiles && l.profiles.name)?l.profiles.name:'Unknown';
+    var car=[l.car_brand,l.car_model].filter(Boolean).join(' ')||'—';
+    var thumbUrl=l.photo_front_url||l.main_photo_url;
+    h+='<tr><td>'+(thumbUrl?('<div onclick="openListingPhotosModal(\''+l.id+'\')" style="width:42px;height:42px;border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid #e2e8f0;"><img src="'+esc(thumbUrl)+'" style="width:100%;height:100%;object-fit:cover;"></div>'):('<button class="btn btn-out btn-sm" onclick="openListingPhotosModal(\''+l.id+'\')">No photo</button>'))+'</td>';
+    h+='<td class="fw7">'+esc(l.name)+'</td>';
+    h+='<td style="font-family:monospace;font-size:12.5px;">'+esc(l.oem||'—')+'</td>';
+    h+='<td><span class="badge badge-b">'+esc(l.category||'—')+'</span></td>';
+    h+='<td style="font-size:12.5px;">'+esc(car)+'</td>';
+    h+='<td style="font-size:12.5px;">'+esc(sellerName)+'</td>';
+    h+='<td class="fw7">AED '+l.price+'</td>';
+    h+='<td><div class="td-actions"><button class="btn btn-g btn-sm" onclick="approveListingReal(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-out btn-sm" onclick="rejectListingReal(\''+l.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></td></tr>';
   });
   h+='</tbody></table></div>';
-  return h;
-}
-
-function approveListing(id){
-  var idx=pendingListings.findIndex(function(l){return l.id===id;});
-  if(idx===-1){showToast('Listing not found');return;}
-  var l=pendingListings[idx];
-  allListings.unshift({id:l.id,name:l.name,oem:l.oem,cat:l.cat,car:l.car,seller:l.seller,price:l.price,status:'active'});
-  pendingListings.splice(idx,1);
-  showToast('Listing '+id+' approved and published');
-  renderPage('pending');
-}
-function rejectPendingListing(id){
-  var idx=pendingListings.findIndex(function(l){return l.id===id;});
-  if(idx===-1){showToast('Listing not found');return;}
-  var l=pendingListings[idx];
-  allListings.unshift({id:l.id,name:l.name,oem:l.oem,cat:l.cat,car:l.car,seller:l.seller,price:l.price,status:'rejected'});
-  pendingListings.splice(idx,1);
-  showToast('Listing '+id+' rejected');
-  renderPage('pending');
+  c.innerHTML=h;
 }
 
 async function renderListings(){
@@ -7081,14 +7120,17 @@ function renderListingsFromCache(){
     if(q && i.name.toLowerCase().indexOf(q)===-1 && (i.oem||'').toLowerCase().indexOf(q)===-1) return false;
     return true;
   });
-  h+='<div class="card"><table><thead><tr><th>Part Name</th><th>OEM</th><th>Category</th><th>Compatible Car</th><th>Seller</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+  h+='<div class="card"><table><thead><tr><th>Photos</th><th>Part Name</th><th>OEM</th><th>Category</th><th>Compatible Car</th><th>Seller</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>';
   if(filtered.length===0){
-    h+='<tr><td colspan="8" style="text-align:center;color:#888;padding:24px;">No listings match this filter.</td></tr>';
+    h+='<tr><td colspan="9" style="text-align:center;color:#888;padding:24px;">No listings match this filter.</td></tr>';
   }
   filtered.forEach(function(i){
     var sellerName=(i.profiles && i.profiles.name)?i.profiles.name:'Unknown';
     var car=[i.car_brand,i.car_model].filter(Boolean).join(' ')||'—';
-    h+='<tr><td class="fw7">'+esc(i.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(i.oem||'—')+'</td><td><span class="badge badge-b">'+esc(i.category||'—')+'</span></td><td style="font-size:12.5px;">'+esc(car)+'</td><td style="font-size:12.5px;">'+esc(sellerName)+'</td><td class="fw7">AED '+i.price+'</td><td>'+statusBadge(i.status)+'</td>';
+    var shotCount=[i.photo_front_url||i.main_photo_url,i.photo_side_url,i.photo_top_url,i.photo_back_url].filter(Boolean).length;
+    var thumbUrl=i.photo_front_url||i.main_photo_url;
+    h+='<tr><td>'+(thumbUrl?('<div onclick="openListingPhotosModal(\''+i.id+'\')" style="width:42px;height:42px;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;border:1px solid #e2e8f0;"><img src="'+esc(thumbUrl)+'" style="width:100%;height:100%;object-fit:cover;">'+(shotCount>1?'<span style="position:absolute;bottom:0;right:0;background:rgba(0,0,0,.65);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-top-left-radius:6px;">'+shotCount+'</span>':'')+'</div>'):('<button class="btn btn-out btn-sm" onclick="openListingPhotosModal(\''+i.id+'\')">No photo</button>'))+'</td>';
+    h+='<td class="fw7">'+esc(i.name)+'</td><td style="font-family:monospace;font-size:12px;">'+esc(i.oem||'—')+'</td><td><span class="badge badge-b">'+esc(i.category||'—')+'</span></td><td style="font-size:12.5px;">'+esc(car)+'</td><td style="font-size:12.5px;">'+esc(sellerName)+'</td><td class="fw7">AED '+i.price+'</td><td>'+statusBadge(i.status)+'</td>';
     h+='<td><div class="td-actions">';
     if(i.status==='pending'){
       h+='<button class="btn btn-g btn-sm" onclick="approveListingReal(\''+i.id+'\')" title="Approve"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span></button>';
@@ -7100,6 +7142,49 @@ function renderListingsFromCache(){
   });
   h+='</tbody></table></div>';
   c.innerHTML=h;
+}
+/* ══ ADMIN — view all uploaded photos for a listing before approving ══ */
+function openListingPhotosModal(id){
+  var l=(window._adminListings||[]).find(function(x){return x.id===id;});
+  if(!l){showToast('Listing not found');return;}
+  var existing=document.getElementById('lp-overlay');
+  if(existing)existing.parentNode.removeChild(existing);
+  var shots=[
+    {label:'Front / Main', url:l.photo_front_url||l.main_photo_url},
+    {label:'Side', url:l.photo_side_url},
+    {label:'Top', url:l.photo_top_url},
+    {label:'Back', url:l.photo_back_url}
+  ].filter(function(s){return s.url;});
+  var overlay=document.createElement('div');
+  overlay.id='lp-overlay';
+  overlay.setAttribute('style','position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.78);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;box-sizing:border-box;');
+  overlay.onclick=function(e){ if(e.target===overlay) closeListingPhotosModal(); };
+  var html='<div style="background:#fff;border-radius:16px;width:100%;max-width:720px;margin:auto;padding:20px;position:relative;">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="font-size:16px;font-weight:800;color:#0f172a;">'+esc(l.name)+' — Photos</h3><button onclick="closeListingPhotosModal()" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:15px;">&times;</button></div>';
+  if(shots.length===0){
+    html+='<div style="text-align:center;color:#888;padding:30px;">No photos uploaded for this listing.</div>';
+  } else {
+    html+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px;">';
+    shots.forEach(function(s){
+      html+='<div><div style="font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">'+s.label+'</div><a href="'+esc(s.url)+'" target="_blank" rel="noopener"><img src="'+esc(s.url)+'" style="width:100%;height:180px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;"></a></div>';
+    });
+    html+='</div>';
+  }
+  if(l.status==='pending'){
+    html+='<div style="display:flex;gap:10px;">';
+    html+='<button class="btn btn-g" style="flex:1;" onclick="closeListingPhotosModal();approveListingReal(\''+l.id+'\')">Approve</button>';
+    html+='<button class="btn btn-re" style="flex:1;" onclick="closeListingPhotosModal();rejectListingReal(\''+l.id+'\')">Reject</button>';
+    html+='</div>';
+  }
+  html+='</div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  document.body.style.overflow='hidden';
+}
+function closeListingPhotosModal(){
+  var o=document.getElementById('lp-overlay');
+  if(o){o.parentNode.removeChild(o);}
+  document.body.style.overflow='';
 }
 async function approveListingReal(id){
   var res=await sb.from('listings').update({status:'active'}).eq('id',id);
@@ -7712,6 +7797,7 @@ function renderDiscounts(){
 }
 function renderSupport(){
   var h='<div class="sec-hdr"><h2>Support Tickets ('+supportTickets.length+' open)</h2></div>';
+  h+='<div style="background:#fef3c7;border:1.5px solid #f5d67a;border-radius:9px;padding:11px 14px;font-size:13px;color:#7a4f00;margin-bottom:16px;line-height:1.6;"><strong>&#9888; Demo data</strong> — this section is not yet connected to the real database. Nothing here reflects real buyers or affects them.</div>';
   h+='<div class="card"><table><thead><tr><th>#</th><th>Buyer</th><th>Issue Summary</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead><tbody>';
   supportTickets.forEach(function(t,i){
     var pri=t.priority==='high'?'<span class="badge badge-r">High</span>':'<span class="badge badge-o">Medium</span>';
