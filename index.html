@@ -2138,7 +2138,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v73</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v74</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2587,7 +2587,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v73-delivery';
+window.PARTSOUQ_BUILD='v74-orderview';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -7848,26 +7848,69 @@ async function renderOrders(){
   var c=$el('content'); if(!c) return;
   var res=await sb.from('orders').select('*, buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)').order('created_at',{ascending:false});
   var orders=(res.data)||[];
+  window._adminOrders=orders;
   var LABELS={pending_admin:'Pending Admin',confirmed:'Confirmed',out_for_delivery:'Out for Delivery',delivered:'Delivered',cancelled:'Cancelled'};
   var h='<div class="sec-hdr"><h2>All Orders ('+orders.length+')</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 13px;font-size:12.5px;color:#1e3a8a;margin-bottom:14px;">Tip: click any order (or the View button) to see full buyer, delivery and payment details before approving.</div>';
   h+='<div class="card"><table><thead><tr><th>Order ID</th><th>Buyer</th><th>Part</th><th>Seller</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>';
   if(orders.length===0){
     h+='<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No orders yet.</td></tr>';
   }
   orders.forEach(function(o){
-    var buyerName=(o.buyer && o.buyer.name)?o.buyer.name:'Unknown';
+    var buyerName=(o.buyer && o.buyer.name)?o.buyer.name:(o.buyer_name||'Unknown');
     var sellerName=(o.seller && o.seller.name)?o.seller.name:'Unknown';
-    h+='<tr><td class="fw7" style="font-family:monospace;font-size:12.5px;">'+o.id.substring(0,8)+'</td><td>'+esc(buyerName)+'</td><td style="font-size:12.5px;">'+esc(o.part_name)+'</td><td style="font-size:12.5px;">'+esc(sellerName)+'</td><td class="fw7">AED '+o.price+'</td><td>'+statusBadge(LABELS[o.status]||o.status)+'</td>';
+    h+='<tr onclick="openOrderDetail(\''+o.id+'\')" style="cursor:pointer;"><td class="fw7" style="font-family:monospace;font-size:12.5px;">'+o.id.substring(0,8)+'</td><td>'+esc(buyerName)+'</td><td style="font-size:12.5px;">'+esc(o.part_name)+'</td><td style="font-size:12.5px;">'+esc(sellerName)+'</td><td class="fw7">AED '+o.price+'</td><td>'+statusBadge(LABELS[o.status]||o.status)+'</td>';
     h+='<td><div class="td-actions">';
+    h+='<button class="btn btn-out btn-sm" onclick="event.stopPropagation();openOrderDetail(\''+o.id+'\')">View</button>';
     if(o.status==='pending_admin'){
-      h+='<button class="btn btn-g btn-sm" onclick="approveOrderReal(\''+o.id+'\')">Approve</button>';
-      h+='<button class="btn btn-re btn-sm" onclick="cancelOrderReal(\''+o.id+'\')" style="margin-left:6px;">Cancel</button>';
+      h+='<button class="btn btn-g btn-sm" onclick="event.stopPropagation();approveOrderReal(\''+o.id+'\')" style="margin-left:6px;">Approve</button>';
+      h+='<button class="btn btn-re btn-sm" onclick="event.stopPropagation();cancelOrderReal(\''+o.id+'\')" style="margin-left:6px;">Cancel</button>';
     }
     h+='</div></td></tr>';
   });
   h+='</tbody></table></div>';
   c.innerHTML=h;
 }
+function openOrderDetail(id){
+  var o=(window._adminOrders||[]).find(function(x){return x.id===id;});
+  if(!o){showToast('Order not found');return;}
+  var LABELS={pending_admin:'Pending Admin',confirmed:'Confirmed',out_for_delivery:'Out for Delivery',delivered:'Delivered',cancelled:'Cancelled'};
+  var buyerName=(o.buyer && o.buyer.name)?o.buyer.name:(o.buyer_name||'Unknown');
+  var sellerName=(o.seller && o.seller.name)?o.seller.name:'Unknown';
+  var addr=o.delivery_address||'', method='';
+  if(/\[SELF-COLLECT\]/i.test(addr)){ method='Self-collect'; addr=addr.replace(/\s*\[SELF-COLLECT\]/i,'').trim(); }
+  else if(/\[HOME DELIVERY\]/i.test(addr)){ method='Home delivery'; addr=addr.replace(/\s*\[HOME DELIVERY\]/i,'').trim(); }
+  var placed=''; try{ if(o.created_at) placed=new Date(o.created_at).toLocaleString(); }catch(e){}
+  var ex=document.getElementById('od-overlay'); if(ex) ex.parentNode.removeChild(ex);
+  var ov=document.createElement('div');
+  ov.id='od-overlay';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;box-sizing:border-box;');
+  function rr(k,v){ return '<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13.5px;"><span style="color:#64748b;font-weight:600;flex-shrink:0;">'+k+'</span><span style="color:#0f172a;font-weight:600;text-align:right;">'+esc(v||'—')+'</span></div>'; }
+  var h='<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;margin:auto;padding:22px;position:relative;">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><h3 style="font-size:17px;font-weight:800;color:#0f172a;">Order Details</h3><button onclick="closeOrderDetail()" style="background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;">&times;</button></div>';
+  h+='<div style="font-family:monospace;font-size:12px;color:#94a3b8;margin-bottom:14px;">#'+esc(o.id)+'</div>';
+  h+=rr('Status', LABELS[o.status]||o.status);
+  h+=rr('Part', o.part_name);
+  h+=rr('Amount', 'AED '+o.price);
+  h+=rr('Quantity', o.quantity||1);
+  h+=rr('Buyer', buyerName);
+  h+=rr('Buyer phone', o.buyer_phone);
+  h+=rr('Seller', sellerName);
+  h+=rr('Delivery method', method);
+  h+=rr('Delivery address', addr);
+  h+=rr('Emirate', o.emirate);
+  h+=rr('Placed', placed);
+  if(o.status==='pending_admin'){
+    h+='<div style="display:flex;gap:10px;margin-top:18px;">';
+    h+='<button class="btn btn-g" style="flex:1;" onclick="closeOrderDetail();approveOrderReal(\''+o.id+'\')">&#10003; Approve &amp; Forward to Seller</button>';
+    h+='<button class="btn btn-re" onclick="closeOrderDetail();cancelOrderReal(\''+o.id+'\')">Cancel</button>';
+    h+='</div>';
+  }
+  h+='</div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+}
+function closeOrderDetail(){var o=document.getElementById('od-overlay');if(o)o.parentNode.removeChild(o);}
 async function approveOrderReal(id){
   var res=await sb.from('orders').update({status:'confirmed'}).eq('id',id);
   if(res.error){showToast('Could not approve: '+res.error.message);return;}
