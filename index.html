@@ -5520,7 +5520,6 @@ function renderBuyerPortal(){
   h+='<button class="auth-social-btn" data-action="social-google"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1.2em;height:1.2em;"><svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></span> Continue with Google</button>';
   h+='<button class="auth-social-btn" data-action="social-apple"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1.2em;height:1.2em;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg></span> Continue with Apple</button>';
   h+='</div>';
-  h+='<div style="text-align:center;font-size:11.5px;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:10px;">Google/Apple buttons are a preview for now — full setup pending. Use email below for a real account.</div>';
   h+='<div class="auth-divider"><span>or use your email</span></div>';
   var isReg=(authMode==='register');
   if(isReg) h+='<input class="auth-inp" id="rb-name" type="text" placeholder="Full name" autocomplete="name">';
@@ -5618,12 +5617,33 @@ async function realPartnerSignIn(){
 async function restoreSupabaseSession(){
   var res=await sb.auth.getSession();
   if(!res.data || !res.data.session) return;
-  var userId=res.data.session.user.id;
+  var sessionUser=res.data.session.user;
+  var userId=sessionUser.id;
   var profRes=await sb.from('profiles').select('*').eq('id',userId).single();
   if(profRes.data){
     currentUser=profRes.data;
     if(currentUser.partsouq_id) currentUser.partsouqId=currentUser.partsouq_id;
     loginSuccess(currentUser);
+    return;
+  }
+  // No profile row yet — this is a first-time Google/Apple sign-in.
+  // Build a buyer profile from the identity the provider gave us.
+  var meta=sessionUser.user_metadata||{};
+  var name=meta.full_name||meta.name||meta.preferred_username||((sessionUser.email||'').split('@')[0])||'PartSouq Buyer';
+  var email=sessionUser.email||meta.email||'';
+  var newProfile={id:userId,name:name,email:email,role:'buyer'};
+  var ins=await sb.from('profiles').insert(newProfile);
+  if(ins && ins.error){
+    // Profile couldn't be saved, but the user IS authenticated — let them in anyway.
+    console.error('Could not create social profile:', ins.error.message);
+  }
+  currentUser=newProfile;
+  var provider=(sessionUser.app_metadata&&sessionUser.app_metadata.provider)||'';
+  loginSuccess(currentUser);
+  if(provider){ showToast('Signed in with '+provider.charAt(0).toUpperCase()+provider.slice(1)); }
+  // Clean the OAuth tokens out of the URL so a refresh stays tidy.
+  if(window.history && window.history.replaceState){
+    window.history.replaceState(null,'',window.location.pathname);
   }
 }
 if(typeof window!=='undefined'){ window.addEventListener('load', restoreSupabaseSession); }
@@ -5675,6 +5695,10 @@ function checkForPasswordRecovery(){
 if(typeof window!=='undefined'){ window.addEventListener('load', checkForPasswordRecovery); }
 
 function attachAuthEvents(container){
+  // The auth-body element is reused across re-renders, so only bind the click
+  // handler once — otherwise listeners stack up and each button fires N times.
+  if(container.__authBound) return;
+  container.__authBound=true;
   container.addEventListener('click',function(e){
     var el=e.target.closest('[data-action]');
     if(!el) return;
@@ -5812,14 +5836,32 @@ function renderRegisterForm(){ currentPortal='buyer'; authMode='register'; rende
 function setPortal(p){ switchPortal(p); }
 
 
-function socialLogin(provider){
-  if(!currentUser){
-    var name = provider==='google' ? 'Google User' : 'Apple User';
-    var newUser={name:name,email:provider+'@buyer.partsouq.co',pw:'',role:'buyer'};
-    DEMO_ACCOUNTS.push(newUser);
-    loginSuccess(newUser);
-    closeAuth();
-    showToast('Signed in with '+provider.charAt(0).toUpperCase()+provider.slice(1));
+/* REAL Google / Apple sign-in via Supabase OAuth.
+   Redirects the user to Google's / Apple's real consent screen, then back
+   here. On return, restoreSupabaseSession() picks up the session and (for a
+   first-time social user) creates their buyer profile automatically.
+   NOTE: the Google and Apple providers must be enabled in the Supabase
+   dashboard (Authentication -> Providers) with valid OAuth credentials, and
+   this page's URL must be added to the allowed Redirect URLs, or the provider
+   will refuse the sign-in. */
+async function socialLogin(provider){
+  if(typeof sb==='undefined' || !sb || !sb.auth || !sb.auth.signInWithOAuth){
+    showToast('Sign-in service is still loading — please wait a moment and try again.');
+    return;
+  }
+  showToast('Redirecting you to '+(provider==='google'?'Google':'Apple')+'…');
+  var redirectTo=window.location.origin+window.location.pathname;
+  try{
+    var res=await sb.auth.signInWithOAuth({
+      provider: provider,
+      options: { redirectTo: redirectTo }
+    });
+    if(res && res.error){
+      showToast('Could not start '+(provider==='google'?'Google':'Apple')+' sign-in: '+res.error.message);
+    }
+    // On success the browser navigates away to the provider; nothing else to do.
+  }catch(err){
+    showToast('Sign-in failed: '+(err&&err.message?err.message:err));
   }
 }
 function doLogin(){
