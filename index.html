@@ -2138,7 +2138,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v74</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v75</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2415,8 +2415,8 @@ button .ico{vertical-align:middle;margin-right:4px;}
 
   <div class="sb-sect">
     <div class="sb-sect-lbl">Orders</div>
-    <div class="sb-item" onclick="showPage('orders',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span> All Orders</div>
-    <div class="sb-item" onclick="showPage('disputes',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Disputes <span class="sb-badge">2</span></div>
+    <div class="sb-item" onclick="showPage('orders',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span> All Orders <span class="sb-badge o" id="sb-orders-badge" style="display:none;">0</span></div>
+    <div class="sb-item" onclick="showPage('disputes',this)"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Disputes <span class="sb-badge" id="sb-disp-badge" style="display:none;">0</span></div>
   </div>
 
   <div class="sb-sect">
@@ -2587,7 +2587,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v74-orderview';
+window.PARTSOUQ_BUILD='v75-admin';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -5523,8 +5523,15 @@ async function getActiveServiceCount(garageId){
   return res.count||0;
 }
 function getBillingInfo(u){
-  var cycleStart = u && (u.cycleStart || u.cycle_start);
-  if(!u||!cycleStart) return null;
+  if(!u) return null;
+  var cycleStart = u.cycleStart || u.cycle_start;
+  if(!cycleStart){
+    // Partner exists but has never started a billing cycle (e.g. free plan / not enrolled yet).
+    // Return a valid record so they still appear in Partner Billing instead of vanishing.
+    var blk = !!(u.manualBlocked || u.manual_blocked);
+    return {partsouqId:u.partsouqId||u.partsouq_id, plan:u.role==='seller'?'Monthly (30 days)':'Weekly (7 days)',
+      cycleDays:u.role==='seller'?30:7, daysRemaining:null, status:blk?'blocked':'nocycle', blocked:blk, dueDate:'—', noCycle:true};
+  }
   var startMs = typeof cycleStart==='string' ? new Date(cycleStart).getTime() : cycleStart;
   var cycleDays = u.role==='seller' ? 30 : 7;
   var elapsedDays = Math.floor((Date.now()-startMs)/86400000);
@@ -5544,7 +5551,8 @@ function billingStatusBadge(status){
     paid:'<span class="badge badge-g">Paid</span>',
     pending:'<span class="badge badge-o">Renewal Due Soon</span>',
     overdue:'<span class="badge badge-r">Overdue</span>',
-    blocked:'<span class="badge badge-r" style="background:#fee2e2;">Blocked</span>'
+    blocked:'<span class="badge badge-r" style="background:#fee2e2;">Blocked</span>',
+    nocycle:'<span class="badge" style="background:#f1f5f9;color:#475569;">Free / Not Enrolled</span>'
   };
   return map[status]||status;
 }
@@ -6435,6 +6443,7 @@ function openAdmin(){
   document.body.style.overflow='hidden';
   updatePartReqBadge();
   updateAppsBadge();
+  refreshAdminBadges();
   renderPage('dashboard');
 }
 function updatePartReqBadge(){
@@ -6450,6 +6459,14 @@ function updateAppsBadge(){
   var n=partnerApps.filter(function(a){return a.status==='pending';}).length;
   b.textContent=n;
   b.style.display=n>0?'inline-flex':'none';
+}
+function _setBadge(id,n){ var b=$el(id); if(!b) return; b.textContent=n; b.style.display=(n>0)?'inline-flex':'none'; }
+/* Live admin sidebar notification counts, read from the real database. */
+async function refreshAdminBadges(){
+  try{ var o=await sb.from('orders').select('id').eq('status','pending_admin'); if(o && !o.error) _setBadge('sb-orders-badge',(o.data||[]).length); }catch(e){}
+  try{ var a=await sb.from('partner_applications').select('id').eq('status','pending'); if(a && !a.error) _setBadge('sb-apps-badge',(a.data||[]).length); }catch(e){}
+  try{ var pr=await sb.from('part_requests').select('id').eq('status','new'); if(pr && !pr.error) _setBadge('sb-pr-badge',(pr.data||[]).length); }catch(e){}
+  try{ var d=await sb.from('disputes').select('id').neq('status','resolved'); _setBadge('sb-disp-badge',(d && !d.error && d.data)?d.data.length:0); }catch(e){ _setBadge('sb-disp-badge',0); }
 }
 
 /* Save the admin-managed Partner Dashboard offer banner and update the preview */
@@ -7629,14 +7646,23 @@ async function loadActiveFeaturedBanners(){
     el.innerHTML='<div class="card" style="padding:30px;text-align:center;color:#888;font-size:13.5px;">No featured banners currently active.</div>';
     return;
   }
-  var h='<div class="card"><table><thead><tr><th>Partner</th><th>Amount</th><th>Expires</th><th>Status</th></tr></thead><tbody>';
+  var h='<div class="card"><table><thead><tr><th>Partner</th><th>Amount</th><th>Period</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead><tbody>';
   active.forEach(function(f){
     var pname=(f.profiles&&f.profiles.name)?f.profiles.name:'Unknown';
     var daysLeft=Math.ceil((new Date(f.period_end)-new Date())/86400000);
-    h+='<tr><td class="fw7">'+esc(pname)+'</td><td>AED '+f.amount+'</td><td>'+f.period_end+' ('+daysLeft+' day'+(daysLeft===1?'':'s')+' left)</td><td><span class="badge badge-g">Active</span></td></tr>';
+    h+='<tr><td class="fw7">'+esc(pname)+'</td><td>AED '+f.amount+'</td><td style="font-size:12px;">'+esc(f.period_start||'—')+' → '+esc(f.period_end)+'</td><td>'+f.period_end+' ('+daysLeft+' day'+(daysLeft===1?'':'s')+' left)</td><td><span class="badge badge-g">Active</span></td>';
+    h+='<td><div class="td-actions"><button class="btn btn-re btn-sm" onclick="removeFeaturedBanner(\''+f.id+'\')">Remove / Deactivate</button></div></td></tr>';
   });
   h+='</tbody></table></div>';
   el.innerHTML=h;
+}
+async function removeFeaturedBanner(id){
+  if(!confirm('Remove this featured banner? It will stop showing immediately.')) return;
+  var res=await sb.from('featured_listings').delete().eq('id',id).select();
+  if(res.error){ showToast('Could not remove: '+res.error.message); return; }
+  if(!res.data || res.data.length===0){ showToast('Remove was blocked — sign in through the Admin login for full permissions.'); return; }
+  showToast('Featured banner removed');
+  loadActiveFeaturedBanners();
 }
 async function renderOverrides(){
   var c=$el('content'); if(!c) return;
@@ -7648,6 +7674,7 @@ async function renderOverrides(){
   var h='<div class="sec-hdr"><h2>Listing / Service Overrides</h2></div>';
   h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 13px;font-size:13px;color:#1e3a8a;margin-bottom:18px;line-height:1.6;">Grant a seller or garage extra listings/services without changing their subscription plan — e.g. a promotional extension. Every override requires a reason and is fully tracked below.</div>';
 
+  var planDefaultMap={};
   h+='<div class="card" style="margin-bottom:20px;"><table><thead><tr><th>Partner</th><th>Type</th><th>Plan Default</th><th>Current Override</th><th>Effective Limit</th><th>Action</th></tr></thead><tbody>';
   if(partners.length===0){h+='<tr><td colspan="6" style="text-align:center;color:#888;padding:24px;">No sellers or garages yet.</td></tr>';}
   for(var i=0;i<partners.length;i++){
@@ -7655,6 +7682,7 @@ async function renderOverrides(){
     var effectivePlan=await getEffectivePlan(p.id);
     var role=p.role==='garage'?'garage':'seller';
     var planDefault=PLAN_LIMITS[role][effectivePlan]!=null?PLAN_LIMITS[role][effectivePlan]:'—';
+    planDefaultMap[p.id]={plan:effectivePlan, planDefault:planDefault};
     var hasOverride=p.listing_limit_override!=null;
     var effectiveLimit=hasOverride?p.listing_limit_override:planDefault;
     h+='<tr><td class="fw7">'+esc(p.name)+'</td>';
@@ -7670,12 +7698,14 @@ async function renderOverrides(){
   h+='</tbody></table></div>';
 
   h+='<div class="sec-hdr"><h2>Override History</h2></div>';
-  h+='<div class="card"><table><thead><tr><th>Partner</th><th>Override Value</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead><tbody>';
-  if(history.length===0){h+='<tr><td colspan="5" style="text-align:center;color:#888;padding:24px;">No overrides recorded yet.</td></tr>';}
+  h+='<div class="card"><table><thead><tr><th>Partner</th><th>Plan Default</th><th>Override Value</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+  if(history.length===0){h+='<tr><td colspan="6" style="text-align:center;color:#888;padding:24px;">No overrides recorded yet.</td></tr>';}
   history.forEach(function(hrow){
     var pname=(hrow.profiles&&hrow.profiles.name)?hrow.profiles.name:'Unknown';
     var dateStr=new Date(hrow.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-    h+='<tr><td class="fw7">'+esc(pname)+'</td><td>'+(hrow.override_value!=null?hrow.override_value:'Removed')+'</td>';
+    var pd=planDefaultMap[hrow.partner_id];
+    var pdText=pd?(pd.planDefault+' ('+pd.plan+')'):'—';
+    h+='<tr><td class="fw7">'+esc(pname)+'</td><td style="font-size:12.5px;">'+esc(pdText)+'</td><td>'+(hrow.override_value!=null?hrow.override_value:'Removed')+'</td>';
     h+='<td style="font-size:12.5px;max-width:280px;">'+esc(hrow.reason)+'</td>';
     h+='<td>'+(hrow.active?'<span class="badge badge-g">Active</span>':'<span class="badge" style="background:#f1f5f9;color:#888;">Superseded</span>')+'</td>';
     h+='<td style="font-size:12px;color:#888;">'+dateStr+'</td></tr>';
@@ -7753,6 +7783,7 @@ async function approvePartnerApp(id){
   if(res.error){showToast('Could not approve: '+res.error.message);return;}
   showToast('Application approved — now contact them on WhatsApp to complete Quick Sign Up');
   renderApplications();
+  refreshAdminBadges();
 }
 async function rejectPartnerApp(id){
   if(!confirm('Reject this application?')) return;
@@ -7760,6 +7791,7 @@ async function rejectPartnerApp(id){
   if(res.error){showToast('Could not reject: '+res.error.message);return;}
   showToast('Application rejected');
   renderApplications();
+  refreshAdminBadges();
 }
 
 /* ══ PARTNER BILLING — ADMIN VIEW ══
@@ -7774,17 +7806,17 @@ async function renderBilling(){
   c.innerHTML='<div class="card" style="padding:20px;">Loading…</div>';
   var res=await sb.from('profiles').select('*').in('role',['seller','garage']);
   var partners=(res.data)||[];
-  var groups={paid:[],pending:[],overdue:[],blocked:[]};
+  var groups={paid:[],pending:[],overdue:[],blocked:[],nocycle:[]};
   for(var i=0;i<partners.length;i++){
     var p=partners[i];
     var effectivePlan=await getEffectivePlan(p.id);
     var pWithPlan=Object.assign({},p,{plan:effectivePlan});
     var bill=getBillingInfo(pWithPlan);
     if(!bill) continue;
-    groups[bill.status].push({p:p,bill:bill});
+    (groups[bill.status]||groups.nocycle).push({p:p,bill:bill});
   }
   ['paid','pending','overdue','blocked'].forEach(function(k){
-    groups[k].sort(function(a,b){return a.bill.daysRemaining-b.bill.daysRemaining;});
+    groups[k].sort(function(a,b){return (a.bill.daysRemaining||0)-(b.bill.daysRemaining||0);});
   });
 
   var h='<div class="sec-hdr"><h2>Partner Billing</h2></div>';
@@ -7804,9 +7836,10 @@ async function renderBilling(){
     paid:['Paid — Active Subscriptions','#065f46','#e6faf3'],
     pending:['Renewal Due Soon','#92400e','#fff8e6'],
     overdue:['Overdue','#b91c1c','#fee2e2'],
-    blocked:['Blocked','#991b1b','#fee2e2']
+    blocked:['Blocked','#991b1b','#fee2e2'],
+    nocycle:['Free / Not Enrolled — no active billing cycle','#334155','#f1f5f9']
   };
-  ['blocked','overdue','pending','paid'].forEach(function(k){
+  ['blocked','overdue','pending','nocycle','paid'].forEach(function(k){
     var meta=GROUP_META[k];
     var list=groups[k];
     h+='<div style="margin-bottom:10px;"><h3 style="font-size:15px;font-weight:800;color:'+meta[1]+';background:'+meta[2]+';display:inline-block;padding:6px 14px;border-radius:8px;">'+meta[0]+' ('+list.length+')</h3></div>';
@@ -7817,12 +7850,17 @@ async function renderBilling(){
     h+='<div class="card" style="margin-bottom:20px;"><table><thead><tr><th>PartSouq ID</th><th>Partner</th><th>Type</th><th>Plan</th><th>Cycle Status</th><th>Action</th></tr></thead><tbody>';
     list.forEach(function(r){
       var p=r.p, bill=r.bill;
-      var cycleText = bill.daysRemaining>0
-        ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left (due '+bill.dueDate+')'
-        : (Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' overdue (was due '+bill.dueDate+')');
+      var cycleText = bill.noCycle
+        ? 'No active cycle — Free plan'
+        : (bill.daysRemaining>0
+          ? bill.daysRemaining+' day'+(bill.daysRemaining===1?'':'s')+' left (due '+bill.dueDate+')'
+          : (Math.abs(bill.daysRemaining)+' day'+(Math.abs(bill.daysRemaining)===1?'':'s')+' overdue (was due '+bill.dueDate+')'));
       var page=p.role==='garage'?'garages':'sellers';
       var actionBtns='';
-      if(k==='blocked'){
+      if(k==='nocycle'){
+        actionBtns='<button class="btn btn-g btn-sm" onclick="setPartnerPlanReal(\''+p.id+'\',\'free\',\''+(p.listing_limit_override!=null?p.listing_limit_override:'')+'\',\''+page+'\')">Enroll / Set Plan</button>'
+          +'<button class="btn btn-out btn-sm" onclick="viewPartnerStatement(\''+p.id+'\',\''+esc(p.name)+'\')" style="margin-left:6px;">Statement</button>';
+      } else if(k==='blocked'){
         actionBtns='<button class="btn btn-g btn-sm" onclick="unblockPartnerReal(\''+p.id+'\',\''+page+'\')">Unblock</button>'
           +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+p.id+'\',\''+bill.plan.toLowerCase()+'\',\''+(p.listing_limit_override!=null?p.listing_limit_override:'')+'\',\''+page+'\')" style="margin-left:6px;">Enrollment</button>';
       } else if(k==='overdue' || k==='pending'){
@@ -7916,6 +7954,7 @@ async function approveOrderReal(id){
   if(res.error){showToast('Could not approve: '+res.error.message);return;}
   showToast('Order approved — seller can now dispatch');
   renderOrders();
+  refreshAdminBadges();
 }
 async function cancelOrderReal(id){
   if(!confirm('Cancel this order?')) return;
@@ -7923,6 +7962,7 @@ async function cancelOrderReal(id){
   if(res.error){showToast('Could not cancel: '+res.error.message);return;}
   showToast('Order cancelled');
   renderOrders();
+  refreshAdminBadges();
 }
 
 async function renderDisputes(){
@@ -8117,16 +8157,17 @@ async function renderSellers(){
     var effectivePlan=await getEffectivePlan(s.id);
     var sWithPlan=Object.assign({},s,{plan:effectivePlan});
     var bill=getBillingInfo(sWithPlan);
-    var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')') : 'No cycle set';
+    var cycleText = !bill ? 'No cycle set'
+      : (bill.noCycle ? 'No active cycle — Free'
+        : (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')'));
     var activeCount=await getActiveListingCount(s.id);
     var limit=getListingLimit(sWithPlan);
     var limitText = limit==null ? 'Unlimited' : (activeCount+' / '+limit);
-    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="viewPartnerStatement(\''+s.id+'\',\''+esc(s.name)+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(s.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(s.partsouq_id||'—')+'</td>';
+    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="openPersonDetail(\''+s.id+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(s.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(s.partsouq_id||'—')+'</td>';
     h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(effectivePlan)+'</span></td>';
     h+='<td style="font-size:12.5px;">'+limitText+'</td>';
     h+='<td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td>';
     h+='<td>'+(s.manual_blocked?'<span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'<span class="badge badge-g">Active</span>')+'</td><td><div class="td-actions">'
-      +'<button class="btn btn-out btn-sm" onclick="setPartnerPlanReal(\''+s.id+'\',\''+effectivePlan+'\',\''+(s.listing_limit_override!=null?s.listing_limit_override:'')+'\',\'sellers\')">Plan/Limit</button>'
       +(s.manual_blocked
         ? '<button class="btn btn-out btn-sm" onclick="unblockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Unblock</button>'
         : '<button class="btn btn-re btn-sm" onclick="blockPartnerReal(\''+s.id+'\',\'sellers\')" style="margin-left:6px;">Block</button>')
@@ -8282,6 +8323,7 @@ async function viewPartnerStatement(id,name){
     h+='<div style="display:flex;align-items:center;gap:8px;">';
     h+='<span id="ps-amt-'+r.id+'" style="font-size:13.5px;font-weight:800;color:#00a064;">AED '+parseFloat(r.amount).toLocaleString()+'</span>';
     h+='<button onclick="editPaymentRecord(\''+r.id+'\')" title="Edit" style="background:#f1f5f9;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><span class="ico" style="width:13px;height:13px;color:#555;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span></button>';
+    h+='<button onclick="deletePaymentRecord(\''+r.id+'\')" title="Delete" style="background:#fee2e2;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><span class="ico" style="width:13px;height:13px;color:#b91c1c;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></button>';
     h+='</div></div>';
   });
   if(body) body.innerHTML=h;
@@ -8306,9 +8348,24 @@ async function savePaymentRecordEdit(id){
   if(isNaN(newAmount)||newAmount<=0){showToast('Please enter a valid amount');return;}
   var reason=(reasonInput?reasonInput.value:'').trim();
   if(!reason){showToast('A reason is required when correcting a payment record');return;}
-  var res=await sb.from('payment_records').update({amount:newAmount, note:reason}).eq('id',id);
+  var res=await sb.from('payment_records').update({amount:newAmount, note:reason}).eq('id',id).select();
   if(res.error){showToast('Could not update: '+res.error.message);return;}
+  if(!res.data || res.data.length===0){ showToast('Update was blocked — please sign in through the Admin login (not a demo account) so you have full permissions.'); return; }
   showToast('Payment record corrected');
+  viewPartnerStatement(window._psPartnerId, window._psPartnerName);
+}
+async function deletePaymentRecord(id){
+  var record=(window._psRecords||[]).find(function(r){return r.id===id;});
+  if(!record) return;
+  var reason=prompt('Reason for deleting this AED '+parseFloat(record.amount).toLocaleString()+' payment record (required):');
+  if(reason===null) return;
+  reason=(reason||'').trim();
+  if(!reason){ showToast('A reason is required to delete a payment record'); return; }
+  try{ await sb.from('audit_logs').insert({action_type:'payment_record_deleted', partner_id:record.partner_id, performed_by:(currentUser&&currentUser.id)||null, details:'Deleted AED '+record.amount+' — reason: '+reason}); }catch(e){}
+  var res=await sb.from('payment_records').delete().eq('id',id).select();
+  if(res.error){ showToast('Could not delete: '+res.error.message); return; }
+  if(!res.data || res.data.length===0){ showToast('Delete was blocked — please sign in through the Admin login (not a demo account) so you have full permissions.'); return; }
+  showToast('Payment record deleted');
   viewPartnerStatement(window._psPartnerId, window._psPartnerName);
 }
 
@@ -8325,11 +8382,13 @@ async function renderGarages(){
     var effectivePlan=await getEffectivePlan(g.id);
     var gWithPlan=Object.assign({},g,{plan:effectivePlan});
     var bill=getBillingInfo(gWithPlan);
-    var cycleText = bill ? (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')') : 'No cycle set';
+    var cycleText = !bill ? 'No cycle set'
+      : (bill.noCycle ? 'No active cycle — Free'
+        : (bill.daysRemaining>0 ? bill.daysRemaining+' days left (due '+bill.dueDate+')' : Math.abs(bill.daysRemaining)+' days overdue (was due '+bill.dueDate+')'));
     var activeCount=await getActiveServiceCount(g.id);
     var limit=getListingLimit(gWithPlan);
     var limitText = limit==null ? 'Unlimited' : (activeCount+' / '+limit);
-    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="viewPartnerStatement(\''+g.id+'\',\''+esc(g.name)+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(g.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(g.partsouq_id||'—')+'</td>';
+    h+='<tr><td class="fw7"><a href="javascript:void(0)" onclick="openPersonDetail(\''+g.id+'\')" style="color:#0f172a;text-decoration:underline;">'+esc(g.name)+'</a></td><td style="font-family:monospace;font-size:12px;">'+esc(g.partsouq_id||'—')+'</td>';
     h+='<td><span class="badge" style="background:#f1f5f9;color:#475569;text-transform:capitalize;">'+esc(effectivePlan)+'</span></td>';
     h+='<td style="font-size:12.5px;">'+limitText+'</td>';
     h+='<td>'+(bill?billingStatusBadge(bill.status)+' <span style="font-size:11px;color:#888;">'+cycleText+'</span>':'<span style="font-size:11px;color:#888;">—</span>')+'</td>';
@@ -8346,15 +8405,63 @@ async function renderGarages(){
 
 async function renderUsers(){
   var c=$el('content'); if(!c) return;
-  var res=await sb.from('profiles').select('*').eq('role','buyer');
+  var res=await sb.from('profiles').select('*').eq('role','buyer').order('created_at',{ascending:false});
   var users=(res.data)||[];
-  var h='<div class="sec-hdr"><h2>Buyers / Users ('+users.length+')</h2></div>';
-  h+='<div class="card"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th></tr></thead><tbody>';
-  if(users.length===0){h+='<tr><td colspan="4" style="text-align:center;color:#888;padding:24px;">No buyers yet.</td></tr>';}
-  users.forEach(function(u){h+='<tr><td class="fw7">'+esc(u.name)+'</td><td style="font-size:12.5px;color:#888;">'+esc(u.email)+'</td><td style="font-size:12.5px;">'+esc(u.phone||'—')+'</td><td style="font-size:12.5px;">'+esc(u.address||'—')+'</td></tr>';});
-  h+='</tbody></table></div>';
+  window._adminBuyers=users;
+  var h='<div class="sec-hdr"><h2 id="buyer-count">Buyers / Users ('+users.length+')</h2><div class="search-box"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span><input id="buyer-search" placeholder="Search name, email or phone…" oninput="filterBuyers(this.value)"></div></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 13px;font-size:12.5px;color:#1e3a8a;margin-bottom:14px;">Click any buyer to view their full profile and order history.</div>';
+  h+='<div class="card"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th></tr></thead><tbody id="buyer-tbody"></tbody></table></div>';
   c.innerHTML=h;
+  renderBuyerRows(users);
 }
+function renderBuyerRows(users){
+  var tb=$el('buyer-tbody'); if(!tb) return;
+  if(!users.length){ tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:#888;padding:24px;">No matching buyers.</td></tr>'; return; }
+  var h='';
+  users.forEach(function(u){ h+='<tr onclick="openPersonDetail(\''+u.id+'\')" style="cursor:pointer;"><td class="fw7">'+esc(u.name)+'</td><td style="font-size:12.5px;color:#888;">'+esc(u.email)+'</td><td style="font-size:12.5px;">'+esc(u.phone||'—')+'</td><td style="font-size:12.5px;">'+esc(u.address||'—')+'</td></tr>'; });
+  tb.innerHTML=h;
+}
+function filterBuyers(q){
+  var all=window._adminBuyers||[];
+  q=(q||'').toLowerCase().trim();
+  var f=q?all.filter(function(u){return (u.name||'').toLowerCase().indexOf(q)>-1||(u.email||'').toLowerCase().indexOf(q)>-1||(u.phone||'').toLowerCase().indexOf(q)>-1;}):all;
+  renderBuyerRows(f);
+  var cnt=$el('buyer-count'); if(cnt) cnt.textContent='Buyers / Users ('+f.length+(q?' of '+all.length:'')+')';
+}
+/* Full person profile + controls — works for buyer, seller or garage. */
+async function openPersonDetail(id){
+  var ex=document.getElementById('pd-overlay'); if(ex) ex.parentNode.removeChild(ex);
+  var ov=document.createElement('div'); ov.id='pd-overlay';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;box-sizing:border-box;');
+  ov.innerHTML='<div id="pd-card" style="background:#fff;border-radius:16px;width:100%;max-width:600px;margin:auto;padding:22px;position:relative;"><div style="text-align:center;color:#888;padding:24px;">Loading…</div></div>';
+  document.body.appendChild(ov);
+  var res=await sb.from('profiles').select('*').eq('id',id).single();
+  var p=res.data;
+  var card=document.getElementById('pd-card'); if(!card) return;
+  if(!p){ card.innerHTML='<div style="text-align:center;padding:20px;color:#888;">Could not load this person.</div><div style="text-align:center;"><button class="btn btn-out" onclick="closePersonDetail()">Close</button></div>'; return; }
+  var roleLabel=p.role==='seller'?'Seller':p.role==='garage'?'Garage':p.role==='admin'?'Admin':'Buyer';
+  var extra='';
+  try{
+    if(p.role==='seller'){ var l=await sb.from('listings').select('id').eq('seller_id',id); var o=await sb.from('orders').select('id').eq('seller_id',id); extra='<b>'+(((l.data)||[]).length)+'</b> listings &middot; <b>'+(((o.data)||[]).length)+'</b> orders'; }
+    else if(p.role==='garage'){ var s=await sb.from('garage_services').select('id').eq('garage_id',id); extra='<b>'+(((s.data)||[]).length)+'</b> services'; }
+    else if(p.role==='buyer'){ var o2=await sb.from('orders').select('id').eq('buyer_id',id); extra='<b>'+(((o2.data)||[]).length)+'</b> orders placed'; }
+  }catch(e){}
+  function rr(k,v){ return '<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13.5px;"><span style="color:#64748b;font-weight:600;flex-shrink:0;">'+k+'</span><span style="color:#0f172a;font-weight:600;text-align:right;word-break:break-word;">'+esc(v||'—')+'</span></div>'; }
+  var h='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;"><div><h3 style="font-size:18px;font-weight:800;color:#0f172a;">'+esc(p.name)+'</h3><span class="badge badge-b" style="margin-top:4px;display:inline-block;">'+roleLabel+'</span>'+(p.manual_blocked?' <span class="badge" style="background:#fee2e2;color:#b91c1c;">Blocked</span>':'')+'</div><button onclick="closePersonDetail()" style="background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;">&times;</button></div>';
+  if(extra) h+='<div style="font-size:12.5px;color:#64748b;margin-bottom:14px;">'+extra+'</div>';
+  h+=rr('Email',p.email); h+=rr('Phone',p.phone); h+=rr('Address',p.address); h+=rr('Emirate',p.emirate);
+  if(p.role==='seller'||p.role==='garage'){ h+=rr('PartSouq ID',p.partsouq_id); h+=rr('Business',p.business_name); h+=rr('Plan',p.plan); }
+  if(p.role==='seller'||p.role==='garage'){
+    var page=p.role==='garage'?'garages':'sellers';
+    h+='<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">';
+    h+='<button class="btn btn-out" onclick="closePersonDetail();viewPartnerStatement(\''+p.id+'\',\''+esc(p.name)+'\')">View Statement</button>';
+    if(p.manual_blocked) h+='<button class="btn btn-g" onclick="closePersonDetail();unblockPartnerReal(\''+p.id+'\',\''+page+'\')">Unblock</button>';
+    else h+='<button class="btn btn-re" onclick="closePersonDetail();blockPartnerReal(\''+p.id+'\',\''+page+'\')">Block</button>';
+    h+='</div>';
+  }
+  card.innerHTML=h;
+}
+function closePersonDetail(){var o=document.getElementById('pd-overlay');if(o)o.parentNode.removeChild(o);}
 
 function renderSettings(){
   var h='<div class="tab-bar"><div class="tab on" onclick="switchTab(this,\'set-gen\')">General</div><div class="tab" onclick="switchTab(this,\'set-team\')">Team Access</div><div class="tab" onclick="switchTab(this,\'set-notif\')">Notifications</div></div>';
