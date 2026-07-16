@@ -2138,7 +2138,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE.</p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v70</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2587,6 +2587,8 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.PARTSOUQ_BUILD='v70-batch2';
+try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
 
