@@ -2514,9 +2514,9 @@ button .ico{vertical-align:middle;margin-right:4px;}
         </div>
       </div>
       <div class="form-g">
-        <label>Main Photo (optional)</label>
-        <label class="upload-area" style="position:relative;display:block;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#00c47a;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><div class="upload-area-txt"><strong>Choose Photo</strong> \u2014 uploads automatically</div><input type="file" id="lm-photo-input" accept="image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" onchange="lmPhotoSelected(this)"></label>
-        <div id="lm-photo-status" style="display:none;margin-top:8px;font-size:13px;color:var(--gd);font-weight:600;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo ready</div>
+        <label>Listing Photos <span style="font-weight:400;color:#94a3b8;">&mdash; Main + 4 views. Click any photo to zoom; use Replace or &times; to change them.</span></label>
+        <div id="lm-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:6px;"></div>
+        <div id="lm-photo-status" style="display:none;"></div>
         <input type="hidden" id="lm-photo-url" value="">
       </div>
       <div class="form-g"><label>Notes / Internal remarks</label><textarea id="lm-notes" placeholder="Any notes for the review team…"></textarea></div>
@@ -4081,7 +4081,8 @@ async function loadSellerMyListings(){
   items.forEach(function(item,i){
     var lbl=LABELS[item.status]||['—','#f1f5f9','#555'];
     h+='<div style="padding:14px 16px;'+(i<items.length-1?'border-bottom:1px solid #f1f5f9;':'')+'display:flex;align-items:center;gap:12px;">';
-    h+='<div style="width:42px;height:42px;border-radius:8px;background:#f1f5f9;overflow:hidden;flex-shrink:0;">'+(item.main_photo_url?'<img src="'+esc(item.main_photo_url)+'" style="width:100%;height:100%;object-fit:cover;">':'')+'</div>';
+    var _sThumb=item.photo_front_url||item.main_photo_url;
+    h+='<div style="width:42px;height:42px;border-radius:8px;background:#f1f5f9;overflow:hidden;flex-shrink:0;">'+(_sThumb?'<img src="'+esc(_sThumb)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;">':'')+'</div>';
     h+='<div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">'+esc(item.name)+(item.discount_percent>0?' <span style="color:#e53e3e;font-size:11.5px;">('+item.discount_percent+'% off)</span>':'')+'</div>';
     h+='<div style="font-size:12px;color:#888;">OEM: '+esc(item.oem)+' &middot; AED '+item.price+'</div></div>';
     h+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+lbl[1]+';color:'+lbl[2]+';">'+lbl[0]+'</span>';
@@ -7271,7 +7272,7 @@ function openListingPhotosModal(id){
   } else {
     html+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px;">';
     shots.forEach(function(s){
-      html+='<div><div style="font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">'+s.label+'</div><a href="'+esc(s.url)+'" target="_blank" rel="noopener"><img src="'+esc(s.url)+'" style="width:100%;height:180px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;"></a></div>';
+      html+='<div><div style="font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">'+s.label+'</div><img src="'+esc(s.url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:100%;height:180px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;cursor:zoom-in;"></div>';
     });
     html+='</div>';
   }
@@ -7328,8 +7329,10 @@ function searchListings(val){
 function addListing(){
   editingListingId=null;
   var t=$el('listing-modal-title'); if(t) t.textContent='Add New Listing';
-  ['lm-name','lm-oem','lm-eng','lm-chassis','lm-yr','lm-sp','lm-del','lm-del-num','lm-notes'].forEach(function(id){var e=$el(id); if(e) e.value='';});
+  ['lm-name','lm-oem','lm-eng','lm-chassis','lm-yr','lm-sp','lm-del','lm-del-num','lm-notes','lm-photo-url','lm-discount'].forEach(function(id){var e=$el(id); if(e) e.value='';});
   ['lm-cat','lm-brand'].forEach(function(id){var e=$el(id); if(e) e.value='';});
+  window._lmPhotos={main:'',front:'',side:'',top:'',back:''};
+  renderLmPhotos();
   openGenericModal('listing-modal');
 }
 async function editListing(id){
@@ -7359,7 +7362,8 @@ async function editListing(id){
   $safe('lm-war-unit',function(e){e.value=l.warranty_unit||'';});
   $safe('lm-photo-url',function(e){e.value=l.main_photo_url||'';});
   $safe('lm-discount',function(e){e.value=l.discount_percent||'';});
-  $safe('lm-photo-status',function(e){e.style.display=l.main_photo_url?'flex':'none';});
+  window._lmPhotos={main:l.main_photo_url||'',front:l.photo_front_url||'',side:l.photo_side_url||'',top:l.photo_top_url||'',back:l.photo_back_url||''};
+  renderLmPhotos();
 }
 function deleteListing(id){
   var idx=allListings.findIndex(function(x){return x.id===id;});
@@ -7370,24 +7374,57 @@ function deleteListing(id){
   renderPage('listings');
 }
 
-async function lmPhotoSelected(input){
-  var file=input.files[0];
-  if(!file) return;
-  var statusEl=$el('lm-photo-status');
-  if(statusEl){statusEl.style.display='flex';statusEl.innerHTML='Uploading...';}
+/* Admin listing photo editor \u2014 main + 4 views, each viewable/zoomable,
+   replaceable and removable. State lives in window._lmPhotos. */
+window._lmPhotos={main:'',front:'',side:'',top:'',back:''};
+var LM_SLOTS=[{k:'main',label:'Main'},{k:'front',label:'Front'},{k:'side',label:'Side'},{k:'top',label:'Top'},{k:'back',label:'Back'}];
+function renderLmPhotos(){
+  var c=$el('lm-photos'); if(!c) return;
+  var p=window._lmPhotos||{};
+  var h='';
+  LM_SLOTS.forEach(function(s){
+    var url=p[s.k]||'';
+    h+='<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;text-align:center;background:#f8fafc;">';
+    h+='<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">'+s.label+'</div>';
+    if(url){
+      h+='<div style="position:relative;">';
+      h+='<img src="'+esc(url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:100%;height:84px;object-fit:cover;border-radius:7px;cursor:zoom-in;border:1px solid #e2e8f0;">';
+      h+='<button type="button" onclick="lmRemovePhoto(\''+s.k+'\')" title="Remove" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);border:none;color:#fff;font-size:12px;cursor:pointer;line-height:1;">&times;</button>';
+      h+='</div>';
+      h+='<label style="display:block;margin-top:6px;font-size:11px;color:#00a064;font-weight:700;cursor:pointer;">Replace<input type="file" accept="image/*" style="display:none;" onchange="lmSlotUpload(this,\''+s.k+'\')"></label>';
+    } else {
+      h+='<label style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:84px;border:1.5px dashed #cbd5e1;border-radius:7px;cursor:pointer;color:#94a3b8;font-size:11px;"><span style="font-size:20px;line-height:1;">+</span>Add photo<input type="file" accept="image/*" style="display:none;" onchange="lmSlotUpload(this,\''+s.k+'\')"></label>';
+    }
+    h+='<div id="lm-slot-status-'+s.k+'" style="font-size:10.5px;color:#64748b;margin-top:4px;min-height:12px;"></div>';
+    h+='</div>';
+  });
+  c.innerHTML=h;
+}
+async function lmSlotUpload(input,slot){
+  var file=input.files[0]; if(!file) return;
+  var st=$el('lm-slot-status-'+slot); if(st) st.textContent='Uploading\u2026';
   try{
     var compressed=await compressImage(file);
-    var path='admin-added/'+Date.now()+'.jpg';
+    var path='admin-added/'+slot+'-'+Date.now()+'.jpg';
     var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
     if(up.error) throw new Error(up.error.message);
     var pub=sb.storage.from('listing-photos').getPublicUrl(path);
-    $safe('lm-photo-url',function(e){e.value=pub.data.publicUrl;});
-    if(statusEl){statusEl.innerHTML='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo uploaded';}
+    window._lmPhotos[slot]=pub.data.publicUrl;
+    if(slot==='main'){ $safe('lm-photo-url',function(e){e.value=pub.data.publicUrl;}); }
+    renderLmPhotos();
+    showToast(slot.charAt(0).toUpperCase()+slot.slice(1)+' photo uploaded');
   }catch(err){
+    if(st) st.textContent='Upload failed';
     showToast('Upload failed: '+err.message+' \u2014 make sure the "listing-photos" storage bucket exists in Supabase.');
-    if(statusEl){statusEl.style.display='none';}
   }
 }
+function lmRemovePhoto(slot){
+  window._lmPhotos[slot]='';
+  if(slot==='main'){ $safe('lm-photo-url',function(e){e.value='';}); }
+  renderLmPhotos();
+}
+/* Back-compat shim: some markup may still call lmPhotoSelected for the main slot */
+function lmPhotoSelected(input){ return lmSlotUpload(input,'main'); }
 window._adminSellerList=[];
 async function populateAdminSellerDropdown(){
   var sel=$el('lm-seller'); if(!sel) return;
@@ -7424,7 +7461,8 @@ async function saveListing(mode){
   var delTime = delNum ? (delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days'))) : '';
   var warNum=($el('lm-war-num')||{}).value||'';
   var warUnit=($el('lm-war-unit')||{}).value||'';
-  var photoUrl=($el('lm-photo-url')||{}).value||'';
+  var ph=window._lmPhotos||{};
+  var photoUrl=(ph.main||($el('lm-photo-url')||{}).value||'');
   if(!name||!oem||!bp){showToast('Please fill in part name, OEM number, and price');return;}
   if(!sellerId){showToast('Please select a seller');return;}
   if(!delNum){showToast('Please enter an Estimated Delivery Time');return;}
@@ -7435,7 +7473,8 @@ async function saveListing(mode){
     year_range:yr, car_spec:spec, engine_no:eng, chassis_no:chassis,
     price:parseFloat(bp)||0, delivery_fee:parseFloat(delFee)||0, delivery_time:delTime,
     warranty_value:warNum?parseInt(warNum):null, warranty_unit:warUnit||null,
-    main_photo_url:photoUrl, seller_id:sellerId, status:status, discount_percent:parseInt(($el('lm-discount')||{}).value)||0
+    main_photo_url:photoUrl||null, seller_id:sellerId, status:status, discount_percent:parseInt(($el('lm-discount')||{}).value)||0,
+    photo_front_url:(ph.front||null), photo_side_url:(ph.side||null), photo_top_url:(ph.top||null), photo_back_url:(ph.back||null)
   };
   var res;
   if(editingListingId){
