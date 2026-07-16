@@ -2138,7 +2138,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v72</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v73</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2587,7 +2587,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v72-gallery';
+window.PARTSOUQ_BUILD='v73-delivery';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -4448,7 +4448,8 @@ async function loadRealListings(){
     var _orig = Number(row.price) || 0;
     var _sale = _disc>0 ? Math.round(_orig*(1-_disc/100)) : _orig;
     var _delFee = (row.delivery_fee!==null && row.delivery_fee!==undefined && row.delivery_fee!=='') ? Number(row.delivery_fee) : null;
-    var _delInc = !!row.delivery_included;
+    // Single source of truth: a positive fee is charged to the buyer; 0/blank = free.
+    var _delInc = !(_delFee && _delFee>0);
     PRODS.push({
       id: numericId, _real: true, realId: row.id, sellerId: row.seller_id,
       title: row.name, brand: sellerName, cat: row.category || 'Parts',
@@ -7393,6 +7394,7 @@ function addListing(){
   ['lm-cat','lm-brand'].forEach(function(id){var e=$el(id); if(e) e.value='';});
   window._lmPhotos={main:'',front:'',side:'',top:'',back:''};
   renderLmPhotos();
+  $safe('lm-del-type',function(e){e.value='included';});
   openGenericModal('listing-modal');
 }
 async function editListing(id){
@@ -7415,6 +7417,7 @@ async function editListing(id){
   $safe('lm-chassis',function(e){e.value=l.chassis_no||'';});
   $safe('lm-sp',function(e){e.value=l.price||'';});
   $safe('lm-del',function(e){e.value=l.delivery_fee||'';});
+  $safe('lm-del-type',function(e){e.value=(l.delivery_included===false)?'separate':'included';});
   var delMatch = (l.delivery_time||'').match(/(\d+)\s*(hour|day)/i);
   $safe('lm-del-num',function(e){e.value=delMatch?delMatch[1]:'';});
   $safe('lm-del-unit',function(e){e.value=delMatch&&delMatch[2].toLowerCase()==='hour'?'hours':'days';});
@@ -7516,6 +7519,7 @@ async function saveListing(mode){
   var chassis=($el('lm-chassis')||{}).value||'';
   var bp=($el('lm-sp')||{}).value||'';
   var delFee=($el('lm-del')||{}).value||'0';
+  var delType=($el('lm-del-type')||{}).value||'included';
   var delNum=($el('lm-del-num')||{}).value||'';
   var delUnit=($el('lm-del-unit')||{}).value||'days';
   var delTime = delNum ? (delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days'))) : '';
@@ -7531,7 +7535,8 @@ async function saveListing(mode){
   var payload={
     name:name, oem:oem, category:cat, condition:cond, car_brand:brand, car_model:model,
     year_range:yr, car_spec:spec, engine_no:eng, chassis_no:chassis,
-    price:parseFloat(bp)||0, delivery_fee:parseFloat(delFee)||0, delivery_time:delTime,
+    price:parseFloat(bp)||0, delivery_fee:(delType==='separate'?(parseFloat(delFee)||0):0), delivery_time:delTime,
+    delivery_included:(delType!=='separate'),
     warranty_value:warNum?parseInt(warNum):null, warranty_unit:warUnit||null,
     main_photo_url:photoUrl||null, seller_id:sellerId, status:status, discount_percent:parseInt(($el('lm-discount')||{}).value)||0,
     photo_front_url:(ph.front||null), photo_side_url:(ph.side||null), photo_top_url:(ph.top||null), photo_back_url:(ph.back||null)
