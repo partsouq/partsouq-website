@@ -2829,11 +2829,12 @@ function renderP(prods){
   }
   var out='';
   prods.forEach(function(p){
-    var sv=Math.round((1-p.price/p.was)*100);
+    var sv=p.disc||0;
     var wl=wish[p.id];
     out+='<div class="pcard">';
     out+="<div class=\"pci\"><div class=\"pcib\" style=\"background-image:url('"+p.img+"');\"></div>";
-    out+='<div class="pcard-bgs"><span class="badge b-s">-'+sv+'%</span>';
+    out+='<div class="pcard-bgs">';
+    if(sv>0) out+='<span class="badge b-s">-'+sv+'%</span>';
     if(p.ver) out+='<span class="badge b-v">&#10003; Verified</span>';
     if(p.isNew) out+='<span class="badge b-n">NEW</span>';
     out+='</div>';
@@ -2843,10 +2844,11 @@ function renderP(prods){
     out+='<div class="pcbrand">'+esc(p.brand)+' &middot; '+esc(p.cond)+'</div>';
     out+='<div class="pctit">'+esc(p.title)+'</div>';
     out+='<div class="pccomp">'+esc(p.compat)+'</div>';
-    out+='<div class="pcst">'+st(p.rating)+'<span class="rc">('+p.rev+')</span></div>';
     out+='<div class="pcpr"><span class="pcprice">AED '+p.price+'</span>';
-    out+='<span class="pcwas">'+p.was+'</span><span class="pcsave">-'+sv+'%</span></div>';
-    out+='<div class="pcdel">Delivery: <b>'+esc(p.del)+'</b></div>';
+    if(sv>0) out+='<span class="pcwas">'+p.was+'</span><span class="pcsave">-'+sv+'%</span>';
+    out+='</div>';
+    var _delTxt = p.deliveryIncluded ? 'Free delivery' : (p.deliveryFee!=null&&p.deliveryFee>0 ? 'Delivery: AED '+p.deliveryFee : (p.deliveryFee===0?'Free delivery':'Delivery: '+esc(p.del)));
+    out+='<div class="pcdel">'+_delTxt+'</div>';
     out+='<div class="pcta">';
     out+='<button class="btn-cart" data-checkout="'+p.id+'"> Add to Cart</button>';
     out+='<button class="btn-dt" data-details="'+p.id+'">Details</button>';
@@ -2875,6 +2877,19 @@ function fc(cat,el){aC=cat;document.querySelectorAll('.ct').forEach(function(t){
 function sortP(v){var p=PRODS.filter(function(x){if(aC!=='all'&&x.cat!==aC)return false;if(verO&&!x.ver)return false;if(emV&&x.em!==emV)return false;return true;});if(v==='low')p.sort(function(a,b){return a.price-b.price;});else if(v==='high')p.sort(function(a,b){return b.price-a.price;});else if(v==='rating')p.sort(function(a,b){return b.rating-a.rating;});else if(v==='new')p.sort(function(a,b){return(b.isNew?1:0)-(a.isNew?1:0);});renderP(p);}
 function filterVer(c){verO=c;applyF();}function filterEm(v){emV=v;applyF();}
 
+/* ══ FULL-SCREEN IMAGE ZOOM ══ (used by buyer, seller and admin image views) */
+function openImgZoom(src){
+  if(!src) return;
+  var ex=document.getElementById('img-zoom-overlay'); if(ex) ex.parentNode.removeChild(ex);
+  var ov=document.createElement('div');
+  ov.id='img-zoom-overlay';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;');
+  ov.innerHTML='<img src="'+src+'" style="max-width:96%;max-height:92%;object-fit:contain;border-radius:8px;box-shadow:0 12px 60px rgba(0,0,0,.6);">'
+    +'<button onclick="closeImgZoom()" title="Close" style="position:absolute;top:18px;right:22px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;">&times;</button>';
+  document.body.appendChild(ov);
+}
+function closeImgZoom(){var o=document.getElementById('img-zoom-overlay');if(o)o.parentNode.removeChild(o);}
+
 /* ══ PRODUCT MODAL ══ */
 function closeModalOverlay(){
   var o=document.getElementById('mdl-overlay');
@@ -2888,7 +2903,7 @@ function openMdl(id){
   if(!p)return;
   var existing=document.getElementById('mdl-overlay');
   if(existing)existing.parentNode.removeChild(existing);
-  var sv=Math.round((1-p.price/p.was)*100);
+  var sv=p.disc||0;
   var wl=wish[id];
   function row(k,v){
     if(!v||v==='undefined')return '';
@@ -2905,7 +2920,7 @@ function openMdl(id){
   html+='<div style="padding:24px;">';
   var galleryImgs = (p.imgs && p.imgs.length) ? p.imgs : [p.img];
   html+='<div style="height:240px;border-radius:12px;overflow:hidden;background:#f1f5f9;margin-bottom:'+(galleryImgs.length>1?'8px':'16px')+';">';
-  html+='<img id="mdl-main-img" src="'+galleryImgs[0]+'" style="width:100%;height:100%;object-fit:cover;">';
+  html+='<img id="mdl-main-img" src="'+galleryImgs[0]+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;">';
   html+='</div>';
   if(galleryImgs.length>1){
     html+='<div style="display:flex;gap:8px;margin-bottom:16px;">';
@@ -2929,17 +2944,27 @@ function openMdl(id){
   // RIGHT
   html+='<div style="padding:24px;background:#f8fafc;display:flex;flex-direction:column;">';
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
-  html+='<span style="background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;">-'+sv+'%</span>';
+  if(sv>0)html+='<span style="background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;">-'+sv+'%</span>';
   if(p.ver)html+='<span style="background:#e6faf3;color:#065f46;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;">&#10003; Verified</span>';
   if(p.isNew)html+='<span style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;">NEW</span>';
   html+='</div>';
   html+='<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1.25;margin-bottom:5px;">'+esc(p.title)+'</div>';
   html+='<div style="font-size:13px;color:#00a064;margin-bottom:6px;">'+esc(p.brand)+' &middot; '+esc(p.cond)+'</div>';
-  html+='<div style="font-size:13px;color:#f5a623;margin-bottom:12px;">'+st(p.rating)+'<span style="color:#888;margin-left:5px;">('+p.rev+' reviews)</span></div>';
-  html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">';
+  if(p.rev>0)html+='<div style="font-size:13px;color:#f5a623;margin-bottom:12px;">'+st(p.rating)+'<span style="color:#888;margin-left:5px;">('+p.rev+' reviews)</span></div>';
+  html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">';
   html+='<span style="font-size:26px;font-weight:800;color:#0f172a;">AED '+p.price+'</span>';
-  html+='<span style="font-size:14px;color:#aaa;text-decoration:line-through;">'+p.was+'</span>';
-  html+='<span style="font-size:13px;font-weight:700;color:#e53e3e;">-'+sv+'%</span>';
+  if(sv>0){
+    html+='<span style="font-size:14px;color:#aaa;text-decoration:line-through;">AED '+p.was+'</span>';
+    html+='<span style="font-size:13px;font-weight:700;color:#e53e3e;">-'+sv+'%</span>';
+  }
+  html+='</div>';
+  // Price + delivery + total breakdown (reflects the seller's delivery setting)
+  var _df = p.deliveryIncluded ? 0 : (p.deliveryFee!=null ? p.deliveryFee : 0);
+  var _delLabel = p.deliveryIncluded ? 'Included — Free' : (p.deliveryFee!=null ? 'AED '+p.deliveryFee : 'Contact seller');
+  html+='<div style="background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;">';
+  html+='<div style="display:flex;justify-content:space-between;padding:5px 0;"><span style="color:#64748b;">Item price</span><span style="font-weight:700;">AED '+p.price+'</span></div>';
+  html+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #eef2f7;"><span style="color:#64748b;">Delivery '+(p.deliveryIncluded?'(included)':'charge')+'</span><span style="font-weight:700;">'+_delLabel+'</span></div>';
+  html+='<div style="display:flex;justify-content:space-between;padding:7px 0 2px;border-top:1px solid #e2e8f0;"><span style="font-weight:800;">Total</span><span style="font-weight:800;color:#00c47a;">AED '+(p.price+_df)+'</span></div>';
   html+='</div>';
   html+='<div style="background:#e6faf3;border:1.5px solid #c8eedd;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#065f46;margin-bottom:10px;">&#128196; <strong>Mulkiya Verified:</strong> OEM, chassis and engine code checked before dispatch.</div>';
   html+='<div style="display:flex;gap:10px;">';
@@ -4358,12 +4383,17 @@ async function loadRealListings(){
     var sellerName = (row.profiles && row.profiles.name) ? row.profiles.name : 'Verified Seller';
     var compat = [row.car_brand, row.car_model].filter(Boolean).join(' ') || 'Multiple vehicles — see description';
     var galleryImgs = [row.photo_front_url||row.main_photo_url, row.photo_side_url, row.photo_top_url, row.photo_back_url].filter(Boolean);
+    var _disc = parseInt(row.discount_percent) || 0;
+    var _orig = Number(row.price) || 0;
+    var _sale = _disc>0 ? Math.round(_orig*(1-_disc/100)) : _orig;
+    var _delFee = (row.delivery_fee!==null && row.delivery_fee!==undefined && row.delivery_fee!=='') ? Number(row.delivery_fee) : null;
+    var _delInc = !!row.delivery_included;
     PRODS.push({
       id: numericId, _real: true, realId: row.id, sellerId: row.seller_id,
       title: row.name, brand: sellerName, cat: row.category || 'Parts',
       img: row.main_photo_url || 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=80&auto=format&fit=crop',
       imgs: galleryImgs.length ? galleryImgs : null,
-      compat: compat, price: row.price, was: row.price, rating: 0, rev: 0,
+      compat: compat, price: _sale, was: _orig, disc: _disc, deliveryFee: _delFee, deliveryIncluded: _delInc, rating: 0, rev: 0,
       ver: true, cond: row.condition || 'See listing', em: (row.profiles && row.profiles.emirate) || '',
       del: row.delivery_time || 'Contact seller', oem: row.oem, warranty: (row.warranty_value ? row.warranty_value+' '+row.warranty_unit : 'No warranty'),
       weight: '—', isNew: true, ret: 'Contact PartSouq support for return eligibility.',
@@ -4513,7 +4543,8 @@ function openCheckout(id){
   document.body.style.overflow='hidden';
   setCkStep(1);
 }
-function closeCheckout(){$safe('ck-modal',function(e){e.classList.remove('open')});document.body.style.overflow='';}
+function closeCheckout(){$safe('ck-modal',function(e){e.classList.remove('open')});document.body.style.overflow='';window._ckSelfCollect=false;}
+function ckSetDelivery(isSelf){ window._ckSelfCollect=!!isSelf; setCkStep(2); }
 function requireLoginForCheckout(){
   if(!currentUser){
     closeCheckout();
@@ -4544,7 +4575,11 @@ function setCkStep(n){
     if(_f=$el('ck-area'))_dd.area=_f.value;
     window._ckDeliveryDetails=_dd;
   }
-  var total=p.price+25;
+  var _ckSelf = !!window._ckSelfCollect;
+  var _ckBaseDel = p.deliveryIncluded ? 0 : (p.deliveryFee!=null ? Number(p.deliveryFee) : 25);
+  var _ckDelFee = _ckSelf ? 0 : _ckBaseDel;
+  var total=p.price+_ckDelFee;
+  var _ckDelLabel = _ckSelf ? 'Self-collect — Free' : (_ckDelFee>0 ? 'AED '+_ckDelFee : 'Free');
   var h='';
   if(n===1){
     h+='<div style="display:flex;gap:12px;background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:14px;">';
@@ -4555,7 +4590,7 @@ function setCkStep(n){
     h+='<div style="font-size:17px;font-weight:800;flex-shrink:0;color:#0f172a;">AED '+p.price+'</div></div>';
     h+='<div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px;">';
     h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-bottom:1px solid #e2e8f0;"><span>Part price</span><span>AED '+p.price+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-bottom:1px solid #e2e8f0;"><span>Delivery fee</span><span>AED 25</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-bottom:1px solid #e2e8f0;"><span>Delivery fee</span><span>'+_ckDelLabel+'</span></div>';
     h+='<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;padding:8px 0;"><span>Total</span><span style="color:#00c47a;">AED '+total+'</span></div></div>';
     h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:12px 14px;font-size:13px;color:#2d6a4a;margin-bottom:18px;line-height:1.6;">';
     h+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#00c47a;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><strong>PartSouq Guarantee:</strong> You pay cash only after you receive the part.</div>';
@@ -4564,6 +4599,11 @@ function setCkStep(n){
     h+='<button onclick="requireLoginForCheckout()" style="flex:1.5;padding:13px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:14px;font-weight:700;border:none;cursor:pointer;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span> Checkout Now</button>';
     h+='</div>';
   } else if(n===2){
+    h+='<div style="margin-bottom:14px;"><label class="ck-lbl">Delivery Method *</label>';
+    h+='<div style="display:flex;gap:8px;">';
+    h+='<button type="button" onclick="ckSetDelivery(false)" style="flex:1;padding:11px;border-radius:9px;border:2px solid '+(_ckSelf?'#e2e8f0':'#00c47a')+';background:'+(_ckSelf?'#fff':'#e6faf3')+';font-size:13px;font-weight:700;cursor:pointer;color:#0f172a;">Home Delivery '+(_ckBaseDel>0?'(AED '+_ckBaseDel+')':'(Free)')+'</button>';
+    h+='<button type="button" onclick="ckSetDelivery(true)" style="flex:1;padding:11px;border-radius:9px;border:2px solid '+(_ckSelf?'#00c47a':'#e2e8f0')+';background:'+(_ckSelf?'#e6faf3':'#fff')+';font-size:13px;font-weight:700;cursor:pointer;color:#0f172a;">Self Collect (Free)</button>';
+    h+='</div></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Full Name *</label><input class="ck-inp" id="ck-name" placeholder="Your name"></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Phone / WhatsApp *</label><input class="ck-inp" id="ck-phone" type="tel" placeholder="+971 50 000 0000"></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Street Address *</label><input class="ck-inp" id="ck-addr" placeholder="Building, street, area"></div>';
@@ -4636,8 +4676,8 @@ function setCkStep(n){
     h+='</ul></div>';
     h+='<div style="background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;">';
     h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>Part price</span><span>AED '+p.price+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>Delivery fee</span><span>AED 25</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;"><span>Cash to pay on delivery</span><span style="color:#00c47a;">AED '+total+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>'+(_ckSelf?'Delivery (self-collect)':'Delivery fee')+'</span><span>'+_ckDelLabel+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;"><span>Cash to pay '+(_ckSelf?'on collection':'on delivery')+'</span><span style="color:#00c47a;">AED '+total+'</span></div>';
     h+='</div>';
     h+='<button id="ck-confirm-btn" onclick="ckConfirm()" style="width:100%;padding:14px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px;">Confirm Order &mdash; Pay Cash on Delivery</button>';
     h+='<button onclick="setCkStep(2)" style="width:100%;padding:11px;border-radius:9px;background:#f0f0f0;color:#555;font-size:14px;font-weight:600;border:none;cursor:pointer;">&#8592; Back</button>';
@@ -4689,9 +4729,10 @@ async function ckConfirm(){
   if(!details){showToast('Please complete delivery details first');setCkStep(2);return;}
   var name=details.name||currentUser.name;
   var phone=details.phone;
-  var addr=details.addr;
+  var _isSelf=!!window._ckSelfCollect;
+  var addr=details.addr + (_isSelf?'  [SELF-COLLECT]':'  [HOME DELIVERY]');
   var emirate=details.emirate;
-  if(!phone||!addr||!emirate){showToast('Please fill in phone, address, and emirate before confirming');return;}
+  if(!phone||!details.addr||!emirate){showToast('Please fill in phone, address, and emirate before confirming');return;}
 
   var btn=$el('ck-confirm-btn'); if(btn){btn.disabled=true;btn.textContent='Placing order…';}
 
@@ -4719,7 +4760,7 @@ async function ckConfirm(){
   }
   var oid=res.data.id;
 
-  window._checkoutMulkiya=null;window._cwMulkiyaData=null;window._carPhoto=null;window._ckDeliveryDetails=null;
+  window._checkoutMulkiya=null;window._cwMulkiyaData=null;window._carPhoto=null;window._ckDeliveryDetails=null;window._ckSelfCollect=false;
   var body=$el('ck-body');
   if(!body)return;
   body.innerHTML=
