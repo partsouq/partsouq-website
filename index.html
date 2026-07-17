@@ -2133,7 +2133,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v78</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v80</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2582,7 +2582,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v78-application';
+window.PARTSOUQ_BUILD='v80-orderphotos';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -2754,28 +2754,34 @@ function cwClearMulkiya(evt){
   window._cwMulkiyaData = null;
 }
 
-function ckMulkiyaUpload(input){
+async function ckMulkiyaUpload(input){
   var file=input.files[0];
   if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    window._checkoutMulkiya=e.target.result;
+  showToast('Uploading Mulkiya…');
+  try{
+    var compressed=await compressImage(file);
+    var path='order-docs/mulkiya-'+Date.now()+'.jpg';
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
+    if(up.error) throw new Error(up.error.message);
+    window._checkoutMulkiya=sb.storage.from('listing-photos').getPublicUrl(path).data.publicUrl;
     setCkStep(2); // re-render to show preview
-    showToast('Mulkiya uploaded successfully');
-  };
-  reader.readAsDataURL(file);
+    showToast('Mulkiya uploaded');
+  }catch(err){ showToast('Upload failed: '+(err.message||err)); }
 }
 
-function ckCarPhotoUpload(input){
+async function ckCarPhotoUpload(input){
   var file=input.files[0];
   if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    window._carPhoto=e.target.result;
+  showToast('Uploading photo…');
+  try{
+    var compressed=await compressImage(file);
+    var path='order-docs/partphoto-'+Date.now()+'.jpg';
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
+    if(up.error) throw new Error(up.error.message);
+    window._carPhoto=sb.storage.from('listing-photos').getPublicUrl(path).data.publicUrl;
     setCkStep(2);
-    showToast('Car photo uploaded');
-  };
-  reader.readAsDataURL(file);
+    showToast('Part photo uploaded');
+  }catch(err){ showToast('Upload failed: '+(err.message||err)); }
 }
 function cwBrand(){
   var b=document.getElementById('cw-brand').value,list=document.getElementById('cw-model-list');
@@ -4207,6 +4213,13 @@ async function loadSellerOrders(){
     h+='<div style="font-size:12px;color:#374151;margin-top:3px;">Phone: '+esc(o.buyer_phone)+' &middot; Amount: <strong>AED '+o.price+' (Cash)</strong></div></div>';
     h+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;flex-shrink:0;background:'+sb+';color:'+sc+';">'+LABELS[o.status]+'</span>';
     h+='</div>';
+    if(o.mulkiya_url || o.part_photo_url){
+      h+='<div style="display:flex;gap:10px;margin-bottom:10px;">';
+      if(o.mulkiya_url) h+='<div style="text-align:center;"><div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">MULKIYA</div><img src="'+esc(o.mulkiya_url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:74px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:zoom-in;"></div>';
+      if(o.part_photo_url) h+='<div style="text-align:center;"><div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:3px;">OLD PART</div><img src="'+esc(o.part_photo_url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:74px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:zoom-in;"></div>';
+      h+='<div style="font-size:11px;color:#64748b;align-self:center;line-height:1.5;">Match these against your listing<br>before dispatching.</div>';
+      h+='</div>';
+    }
     if(o.status==='pending_admin') h+='<div style="font-size:12px;color:#92400e;background:#fef3c7;border-radius:6px;padding:7px 10px;">&#128336; Awaiting PartSouq admin approval before you can dispatch.</div>';
     if(o.status==='confirmed') h+='<button onclick="updateOrderStatusReal(\''+o.id+'\',\'out_for_delivery\')" style="margin-top:8px;padding:8px 14px;border-radius:7px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:700;border:none;cursor:pointer;">Mark Out for Delivery</button>';
     if(o.status==='out_for_delivery') h+='<button onclick="updateOrderStatusReal(\''+o.id+'\',\'delivered\')" style="margin-top:8px;padding:8px 14px;border-radius:7px;background:#00c47a;color:#0a0f1e;font-size:12.5px;font-weight:700;border:none;cursor:pointer;">Mark as Delivered</button>';
@@ -4639,11 +4652,11 @@ function setCkStep(n){
     if(_f=$el('ck-area'))_dd.area=_f.value;
     window._ckDeliveryDetails=_dd;
   }
-  var _ckSelf = !!window._ckSelfCollect;
-  var _ckBaseDel = p.deliveryIncluded ? 0 : (p.deliveryFee!=null ? Number(p.deliveryFee) : 25);
-  var _ckDelFee = _ckSelf ? 0 : _ckBaseDel;
+  // Delivery is always via PartSouq's cash-on-delivery agent — no self-collect,
+  // so buyers never meet the seller directly (protects the platform).
+  var _ckDelFee = p.deliveryIncluded ? 0 : (p.deliveryFee!=null ? Number(p.deliveryFee) : 25);
   var total=p.price+_ckDelFee;
-  var _ckDelLabel = _ckSelf ? 'Self-collect — Free' : (_ckDelFee>0 ? 'AED '+_ckDelFee : 'Free');
+  var _ckDelLabel = _ckDelFee>0 ? 'AED '+_ckDelFee : 'Free';
   var h='';
   if(n===1){
     h+='<div style="display:flex;gap:12px;background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:14px;">';
@@ -4663,11 +4676,6 @@ function setCkStep(n){
     h+='<button onclick="requireLoginForCheckout()" style="flex:1.5;padding:13px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:14px;font-weight:700;border:none;cursor:pointer;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span> Checkout Now</button>';
     h+='</div>';
   } else if(n===2){
-    h+='<div style="margin-bottom:14px;"><label class="ck-lbl">Delivery Method *</label>';
-    h+='<div style="display:flex;gap:8px;">';
-    h+='<button type="button" onclick="ckSetDelivery(false)" style="flex:1;padding:11px;border-radius:9px;border:2px solid '+(_ckSelf?'#e2e8f0':'#00c47a')+';background:'+(_ckSelf?'#fff':'#e6faf3')+';font-size:13px;font-weight:700;cursor:pointer;color:#0f172a;">Home Delivery '+(_ckBaseDel>0?'(AED '+_ckBaseDel+')':'(Free)')+'</button>';
-    h+='<button type="button" onclick="ckSetDelivery(true)" style="flex:1;padding:11px;border-radius:9px;border:2px solid '+(_ckSelf?'#00c47a':'#e2e8f0')+';background:'+(_ckSelf?'#e6faf3':'#fff')+';font-size:13px;font-weight:700;cursor:pointer;color:#0f172a;">Self Collect (Free)</button>';
-    h+='</div></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Full Name *</label><input class="ck-inp" id="ck-name" placeholder="Your name"></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Phone / WhatsApp *</label><input class="ck-inp" id="ck-phone" type="tel" placeholder="+971 50 000 0000"></div>';
     h+='<div style="margin-bottom:12px;"><label class="ck-lbl">Street Address *</label><input class="ck-inp" id="ck-addr" placeholder="Building, street, area"></div>';
@@ -4740,8 +4748,8 @@ function setCkStep(n){
     h+='</ul></div>';
     h+='<div style="background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;">';
     h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>Part price</span><span>AED '+p.price+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>'+(_ckSelf?'Delivery (self-collect)':'Delivery fee')+'</span><span>'+_ckDelLabel+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;"><span>Cash to pay '+(_ckSelf?'on collection':'on delivery')+'</span><span style="color:#00c47a;">AED '+total+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;border-bottom:1px solid #e2e8f0;"><span>Delivery fee</span><span>'+_ckDelLabel+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;"><span>Cash to pay on delivery</span><span style="color:#00c47a;">AED '+total+'</span></div>';
     h+='</div>';
     h+='<button id="ck-confirm-btn" onclick="ckConfirm()" style="width:100%;padding:14px;border-radius:10px;background:#00c47a;color:#0a0f1e;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px;">Confirm Order &mdash; Pay Cash on Delivery</button>';
     h+='<button onclick="setCkStep(2)" style="width:100%;padding:11px;border-radius:9px;background:#f0f0f0;color:#555;font-size:14px;font-weight:600;border:none;cursor:pointer;">&#8592; Back</button>';
@@ -4793,10 +4801,15 @@ async function ckConfirm(){
   if(!details){showToast('Please complete delivery details first');setCkStep(2);return;}
   var name=details.name||currentUser.name;
   var phone=details.phone;
-  var _isSelf=!!window._ckSelfCollect;
-  var addr=details.addr + (_isSelf?'  [SELF-COLLECT]':'  [HOME DELIVERY]');
+  var addr=details.addr;
   var emirate=details.emirate;
-  if(!phone||!details.addr||!emirate){showToast('Please fill in phone, address, and emirate before confirming');return;}
+  if(!phone||!addr||!emirate){showToast('Please fill in phone, address, and emirate before confirming');return;}
+  // Require the photos so admin can approve, seller can match the exact part,
+  // and the delivery agent can confirm the right item before handover.
+  var mulkiyaUrl=window._checkoutMulkiya||window._cwMulkiyaData||null;
+  var partPhotoUrl=window._carPhoto||null;
+  if(!mulkiyaUrl){ showToast('Please upload your Mulkiya (vehicle registration) before confirming'); setCkStep(2); return; }
+  if(!partPhotoUrl){ showToast('Please upload a photo of the old part before confirming'); setCkStep(2); return; }
 
   var btn=$el('ck-confirm-btn'); if(btn){btn.disabled=true;btn.textContent='Placing order…';}
 
@@ -4811,6 +4824,8 @@ async function ckConfirm(){
     buyer_phone: phone,
     delivery_address: addr,
     emirate: emirate,
+    mulkiya_url: mulkiyaUrl,
+    part_photo_url: partPhotoUrl,
     status: 'pending_admin'
   }).select().single();
 
@@ -7953,7 +7968,7 @@ function openOrderDetail(id){
   var LABELS={pending_admin:'Pending Admin',confirmed:'Confirmed',out_for_delivery:'Out for Delivery',delivered:'Delivered',cancelled:'Cancelled'};
   var buyerName=(o.buyer && o.buyer.name)?o.buyer.name:(o.buyer_name||'Unknown');
   var sellerName=(o.seller && o.seller.name)?o.seller.name:'Unknown';
-  var addr=o.delivery_address||'', method='';
+  var addr=o.delivery_address||'', method='Home delivery';
   if(/\[SELF-COLLECT\]/i.test(addr)){ method='Self-collect'; addr=addr.replace(/\s*\[SELF-COLLECT\]/i,'').trim(); }
   else if(/\[HOME DELIVERY\]/i.test(addr)){ method='Home delivery'; addr=addr.replace(/\s*\[HOME DELIVERY\]/i,'').trim(); }
   var placed=''; try{ if(o.created_at) placed=new Date(o.created_at).toLocaleString(); }catch(e){}
@@ -7976,6 +7991,8 @@ function openOrderDetail(id){
   h+=rr('Delivery address', addr);
   h+=rr('Emirate', o.emirate);
   h+=rr('Placed', placed);
+  function odImg(label,url){ if(!url) return '<div style="text-align:center;"><div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px;">'+label+'</div><div style="width:120px;height:88px;border-radius:8px;border:1.5px dashed #fca5a5;background:#fef2f2;color:#b91c1c;font-size:11px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;">Not provided</div></div>'; return '<div style="text-align:center;"><div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px;">'+label+'</div><img src="'+esc(url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:120px;height:88px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;"></div>'; }
+  h+='<div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Buyer Photos — verify the part matches before approving</div><div style="display:flex;gap:12px;flex-wrap:wrap;">'+odImg('Mulkiya (registration)',o.mulkiya_url)+odImg('Old part photo',o.part_photo_url)+'</div></div>';
   if(o.status==='pending_admin'){
     h+='<div style="display:flex;gap:10px;margin-top:18px;">';
     h+='<button class="btn btn-g" style="flex:1;" onclick="closeOrderDetail();approveOrderReal(\''+o.id+'\')">&#10003; Approve &amp; Forward to Seller</button>';
