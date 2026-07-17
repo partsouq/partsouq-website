@@ -2133,7 +2133,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v77</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v78</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2582,7 +2582,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v77-regform';
+window.PARTSOUQ_BUILD='v78-application';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -3121,6 +3121,7 @@ async function rfSubmit(){
   if(email.indexOf('@')===-1 || email.indexOf('.')===-1){showToast('Please enter a valid email address');return;}
   var photos=window._rfPhotos||{};
   if(pType==='seller'){
+    if(!photos.tradeLicence){showToast('Please upload your Trade Licence — it is required');return;}
     var ph4=document.getElementById('rf-ph4');
     if(!ph4||ph4.style.display!=='flex'){showToast('Please upload the Installed position photo — it is required');return;}
     var priceVal=(($el('rf-pprice')||{}).value||'').trim();
@@ -3142,7 +3143,8 @@ async function rfSubmit(){
 
   var payload={
     applicant_type: pType, business_name: bizName, contact_name: contactName,
-    email: email, whatsapp: wa.trim(), emirate: emirate, status:'pending'
+    email: email, whatsapp: wa.trim(), emirate: emirate, status:'pending',
+    trade_licence_url: photos.tradeLicence||null
   };
   if(pType==='seller'){
     var warUnit=($el('rf-pwarranty-unit')||{}).value||'months';
@@ -3165,13 +3167,18 @@ async function rfSubmit(){
     payload.message=($el('rf-gmsg')||{}).value||null;
   }
 
-  var res=await sb.from('partner_applications').insert(payload).select().single();
+  // Applicants are anonymous, so we can't read the row back after insert (no
+  // SELECT policy) — that read-back was what triggered the RLS error. We
+  // generate the id client-side instead and insert without returning.
+  var newUuid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():null;
+  if(newUuid) payload.id=newUuid;
+  var res=await sb.from('partner_applications').insert(payload);
   if(res.error){
     showToast('Could not submit application: '+res.error.message);
     btn.disabled=false;btn.innerHTML='Submit Application';
     return;
   }
-  var appId=res.data.id.substring(0,8).toUpperCase();
+  var appId=newUuid ? newUuid.replace(/-/g,'').substring(0,8).toUpperCase() : ('PS'+String(Date.now()).slice(-8));
   $safe('rf-s3-nav',function(e){e.style.display='none'});
   $safe('rf-ok-msg',function(e){
     e.innerHTML='Your application reference number is <strong style="font-family:monospace;color:#00c47a;">'+appId+'</strong> — this is saved for real, please keep it for your records.<br><br>'
@@ -7729,6 +7736,7 @@ async function renderApplications(){
   var c=$el('content'); if(!c) return;
   var res=await sb.from('partner_applications').select('*').order('created_at',{ascending:false});
   var apps=(res.data)||[];
+  window._adminApps=apps;
   var h='<div class="sec-hdr"><h2>Partner Applications ('+apps.length+')</h2></div>';
   h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:16px;line-height:1.6;">Real applications, saved permanently. Approving here doesn\'t create their login automatically — contact them on WhatsApp to complete <strong>Quick Sign Up</strong> with the same email they applied with.</div>';
   if(apps.length===0){
@@ -7748,9 +7756,9 @@ async function renderApplications(){
     } else if(a.status==='rejected'){
       actionCell = '<span style="font-size:12px;color:#e53e3e;font-weight:700;">Rejected</span>';
     } else {
-      actionCell = '<div class="td-actions"><button class="btn btn-g btn-sm" onclick="approvePartnerApp(\''+a.id+'\')"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-re btn-sm" onclick="rejectPartnerApp(\''+a.id+'\')" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>';
+      actionCell = '<div class="td-actions"><button class="btn btn-out btn-sm" onclick="event.stopPropagation();openApplicationDetail(\''+a.id+'\')">View</button><button class="btn btn-g btn-sm" onclick="event.stopPropagation();approvePartnerApp(\''+a.id+'\')" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span> Approve</button><button class="btn btn-re btn-sm" onclick="event.stopPropagation();rejectPartnerApp(\''+a.id+'\')" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>';
     }
-    h+='<tr><td class="fw7">'+esc(a.business_name||a.contact_name||'—')+'</td>';
+    h+='<tr onclick="openApplicationDetail(\''+a.id+'\')" style="cursor:pointer;"><td class="fw7">'+esc(a.business_name||a.contact_name||'—')+'</td>';
     h+='<td><span class="badge '+(a.applicant_type==='seller'?'badge-b':'badge-o')+'">'+(a.applicant_type==='seller'?'Seller':'Garage')+'</span></td>';
     h+='<td>'+esc(a.emirate||'—')+'</td>';
     h+='<td style="font-size:12.5px;font-family:monospace;">'+esc(a.whatsapp||'—')+'</td>';
@@ -7763,6 +7771,35 @@ async function renderApplications(){
   h+='</tbody></table></div>';
   c.innerHTML=h;
 }
+function openApplicationDetail(id){
+  var a=(window._adminApps||[]).find(function(x){return x.id===id;});
+  if(!a){showToast('Application not found');return;}
+  var ex=document.getElementById('ad-overlay'); if(ex) ex.parentNode.removeChild(ex);
+  var ov=document.createElement('div'); ov.id='ad-overlay';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;box-sizing:border-box;');
+  function rr(k,v){ if(!v) return ''; return '<div style="display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;"><span style="color:#64748b;font-weight:600;flex-shrink:0;">'+k+'</span><span style="color:#0f172a;font-weight:600;text-align:right;word-break:break-word;">'+esc(v)+'</span></div>'; }
+  function imgTile(label,url){ if(!url) return ''; var isPdf=/\.pdf($|\?)/i.test(url); return '<div style="text-align:center;"><div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px;">'+label+'</div>'+(isPdf?'<a href="'+esc(url)+'" target="_blank" rel="noopener" class="btn btn-out btn-sm">Open PDF</a>':'<img src="'+esc(url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:110px;height:84px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;">')+'</div>'; }
+  var h='<div style="background:#fff;border-radius:16px;width:100%;max-width:620px;margin:auto;padding:22px;position:relative;">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;"><div><h3 style="font-size:18px;font-weight:800;color:#0f172a;">'+esc(a.business_name||a.contact_name||'Application')+'</h3><span class="badge '+(a.applicant_type==='seller'?'badge-b':'badge-o')+'" style="margin-top:4px;display:inline-block;">'+(a.applicant_type==='seller'?'Parts Seller':'Garage')+'</span> '+statusBadge(a.status)+'</div><button onclick="closeApplicationDetail()" style="background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;">&times;</button></div>';
+  h+=rr('Contact name',a.contact_name); h+=rr('Email',a.email); h+=rr('WhatsApp',a.whatsapp); h+=rr('Emirate',a.emirate);
+  if(a.applicant_type==='seller'){
+    h+=rr('First part',a.part_name); h+=rr('Car',[a.car_brand,a.car_model].filter(Boolean).join(' '));
+    h+=rr('Price', a.price!=null?('AED '+a.price):''); h+=rr('Warranty', a.warranty_value?(a.warranty_value+' '+(a.warranty_unit||'')):'');
+    h+=rr('Delivery time',a.delivery_time); h+=rr('Delivery fee', a.delivery_fee!=null?('AED '+a.delivery_fee):'');
+  } else {
+    h+=rr('Operating hours',a.operating_hours); h+=rr('Message',a.message);
+  }
+  var tiles=imgTile('Trade Licence',a.trade_licence_url)+imgTile('Part photo',a.main_photo_url)+imgTile('OEM label',a.oem_photo_url)+imgTile('Installed',a.installed_photo_url);
+  if(tiles){ h+='<div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Documents &amp; Photos</div><div style="display:flex;gap:10px;flex-wrap:wrap;">'+tiles+'</div></div>'; }
+  else { h+='<div style="margin-top:12px;font-size:12.5px;color:#b91c1c;background:#fee2e2;border-radius:8px;padding:8px 10px;">No trade licence or photos were attached to this application.</div>'; }
+  if(a.status==='pending'){
+    h+='<div style="display:flex;gap:10px;margin-top:18px;"><button class="btn btn-g" style="flex:1;" onclick="closeApplicationDetail();approvePartnerApp(\''+a.id+'\')">&#10003; Approve</button><button class="btn btn-re" onclick="closeApplicationDetail();rejectPartnerApp(\''+a.id+'\')">Reject</button></div>';
+  }
+  h+='</div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+}
+function closeApplicationDetail(){var o=document.getElementById('ad-overlay');if(o)o.parentNode.removeChild(o);}
 async function approvePartnerApp(id){
   var appRes=await sb.from('partner_applications').select('*').eq('id',id).single();
   var app=appRes.data;
