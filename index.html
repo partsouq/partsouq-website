@@ -2138,7 +2138,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v75</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v76</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2587,7 +2587,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v75-admin';
+window.PARTSOUQ_BUILD='v76-approval';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -5712,18 +5712,33 @@ async function realPartnerSignUp(){
   var pw=($el('rp-pw')||{}).value||'';
   if(!name||!phone||!email||!pw){showToast('Please fill in all fields, including phone / WhatsApp');return;}
   if(pw.length<6){showToast('Password must be at least 6 characters');return;}
-  showToast('Creating your account...');
+  showToast('Submitting your application...');
   var res=await sb.auth.signUp({email:email,password:pw});
   if(res.error){showToast(res.error.message);return;}
   var userId=res.data.user.id;
   var role=partnerType==='garage'?'garage':'seller';
-  var newPartsouqId=(role==='seller'?'PSS-':'PSG-')+Math.floor(10000+Math.random()*90000);
-  var profileRes=await sb.from('profiles').insert({id:userId,name:name,phone:phone,email:email,role:role,partsouq_id:newPartsouqId,activated:true,cycle_start:new Date().toISOString()});
+  // SECURITY: self sign-up must NOT grant partner access. Create only a
+  // buyer-level login and submit a partner application that an admin has to
+  // approve before any seller/garage powers (role, PartSouq ID, dashboard)
+  // are granted. This closes the bypass where anyone could self-activate.
+  var profileRes=await sb.from('profiles').insert({id:userId,name:name,phone:phone,email:email,role:'buyer',activated:false});
   if(profileRes.error){showToast('Account created, but profile setup failed: '+profileRes.error.message);return;}
-  currentUser={id:userId,name:name,phone:phone,email:email,role:role,partsouqId:newPartsouqId,cycle_start:new Date().toISOString()};
-  showToast('Welcome, '+name+'! Your PartSouq ID is '+newPartsouqId+'.');
-  loginSuccess(currentUser); closeAuth();
-  setTimeout(function(){openPartnerDashboard();},400);
+  var appRes=await sb.from('partner_applications').insert({applicant_type:role, contact_name:name, whatsapp:phone, email:email, status:'pending'});
+  if(appRes.error){ console.error('Partner application insert failed:', appRes.error.message); }
+  currentUser={id:userId,name:name,phone:phone,email:email,role:'buyer'};
+  if(typeof updateHeaderForUser==='function') updateHeaderForUser();
+  var b=$el('auth-body');
+  if(b){
+    b.innerHTML='<div style="text-align:center;padding:12px 4px;">'
+      +'<div style="width:58px;height:58px;border-radius:50%;background:#e6faf3;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#00a064" stroke-width="2.5" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>'
+      +'<h3 style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;">Application Submitted</h3>'
+      +'<p style="font-size:13.5px;color:#555;line-height:1.7;margin-bottom:8px;">Thanks '+esc(name)+'! Your <strong>'+(role==='seller'?'Parts Seller':'Garage')+'</strong> account request has been sent to the PartSouq team for review.</p>'
+      +'<p style="font-size:13px;color:#777;line-height:1.7;margin-bottom:16px;">Applications are reviewed within 24–48 hours. Once approved you\'ll receive your PartSouq Partner ID and can sign in to your Partner Dashboard. Until then you have a buyer account only — no seller access.</p>'
+      +'<button class="auth-btn" style="background:#00c47a;" onclick="closeAuth()">Got it</button></div>';
+  } else {
+    showToast('Application submitted — pending admin approval.');
+    closeAuth();
+  }
 }
 async function realPartnerSignIn(){
   var email=($el('li-email')||{}).value||'';
@@ -5739,6 +5754,11 @@ async function realPartnerSignIn(){
   }
   if(profRes.error||!profRes.data){showToast('Could not load profile: '+(profRes.error?profRes.error.message:'no profile found'));return;}
   var user=profRes.data;
+  // Gate: only approved sellers/garages may reach the Partner Dashboard.
+  if(user.role!=='seller' && user.role!=='garage'){
+    showToast('Your partner account is pending admin approval. You\'ll get Partner Dashboard access once an admin approves your application.');
+    return;
+  }
   user.partsouqId=user.partsouq_id;
   // Password alone isn't enough — hold here and require the Verification
   // Code (their PartSouq ID) before completing login, same as before.
@@ -5881,16 +5901,9 @@ function renderPartnerPortal(){
     h+='<input class="auth-inp" id="li-pw" type="password" placeholder="Password" autocomplete="current-password" onkeypress="if(event.key===\'Enter\')realPartnerSignIn()">';
     h+='<div style="text-align:right;margin:-6px 0 12px;"><span data-action="forgot-pw" style="font-size:12.5px;color:var(--g);font-weight:600;cursor:pointer;">Forgot password?</span></div>';
     h+='<button class="auth-btn" data-action="realPartnerSignIn" style="background:#0f172a;color:#fff;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></span> Sign In to Partner Dashboard</button>';
-    h+='<div style="text-align:center;font-size:13px;color:#888;margin-top:14px;">New partner? <span data-action="pt-showsignup" style="color:var(--g);font-weight:700;cursor:pointer;">Create your account</span></div>';
-    h+='<div style="background:#fff8e6;border-radius:8px;padding:10px 12px;font-size:12px;color:#7a4f00;margin-top:12px;">';
-    h+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:5px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg></span>Prefer a formal application review first? <span data-action="go-apply" style="font-weight:700;cursor:pointer;text-decoration:underline;">Apply here</span> instead.</div>';
-    h+='<div id="pt-signup-fields" style="display:none;border-top:1px dashed #e2e8f0;margin-top:18px;padding-top:16px;">';
-    h+='<input class="auth-inp" id="rp-name" type="text" placeholder="Full name" autocomplete="name">';
-    h+='<input class="auth-inp" id="rp-phone" type="tel" placeholder="Phone / WhatsApp (e.g. +971 50 000 0000)" autocomplete="tel">';
-    h+='<input class="auth-inp" id="rp-email" type="email" placeholder="Email address" autocomplete="email">';
-    h+='<input class="auth-inp" id="rp-pw" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password" onkeypress="if(event.key===\'Enter\')realPartnerSignUp()">';
-    h+='<button class="auth-btn" data-action="realPartnerSignUp" style="background:#0f172a;color:#fff;">Create '+(partnerType==='garage'?'Garage':'Seller')+' Account</button>';
-    h+='</div>';
+    h+='<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:12px 14px;font-size:13px;color:#166534;margin-top:16px;line-height:1.65;">';
+    h+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:5px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>';
+    h+='<strong>New partner?</strong> All Spare Part Sellers and Garages join through a reviewed application. <span data-action="go-apply" style="font-weight:700;cursor:pointer;text-decoration:underline;">Apply here</span> — once the PartSouq team approves you, you\'ll receive your Partner ID and can sign in above.</div>';
     h+='</div>';
     h+='<div id="partner-2fa-step" style="display:none;">';
     h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;font-size:13px;color:#1e3a8a;margin-bottom:16px;line-height:1.6;">';
@@ -6044,36 +6057,13 @@ function verifyPartner2FA(){
    - If not linked yet, the partner must enter the one-time Partner ID we
      gave them at approval to CLAIM their account and link this identity
      to it, permanently, the first time only. */
-function socialLoginPartner(provider){
-  var identity=getMockSocialIdentity(provider);
-  var user=DEMO_ACCOUNTS.find(function(u){return (u.role==='seller'||u.role==='garage')&&u.socialIdentity&&u.socialIdentity.email===identity.email;});
-  if(user){
-    var bill=getBillingInfo(user);
-    if(bill&&bill.blocked){
-      showToast('Account blocked — your '+(user.role==='seller'?'monthly':'weekly')+' plan payment is due. Please complete payment, then contact PartSouq to reactivate.');
-      return;
-    }
-    loginSuccess(user); closeAuth();
-    showToast('Signed in with '+provider.charAt(0).toUpperCase()+provider.slice(1));
-    setTimeout(function(){openPartnerDashboard();},400);
-    return;
-  }
-  // Not linked yet — this could be a first-time activation
-  var unclaimed=DEMO_ACCOUNTS.filter(function(u){return (u.role==='seller'||u.role==='garage')&&!u.activated;});
-  if(unclaimed.length===0){
-    showToast('No approved partner account found for this '+provider.charAt(0).toUpperCase()+provider.slice(1)+' sign-in. Apply first and wait for admin approval.');
-    return;
-  }
-  var code=prompt('Signed in with '+(provider==='google'?'Google':'Apple')+' as '+identity.email+'.\n\nEnter your one-time Partner ID (given to you by PartSouq at approval) to activate your account:');
-  if(code===null) return;
-  code=code.trim().toUpperCase();
-  var match=unclaimed.find(function(u){return (u.partsouqId||'').toUpperCase()===code;});
-  if(!match){showToast('That Partner ID is invalid or has already been used. Contact PartSouq support if you need it resent.');return;}
-  match.socialIdentity={provider:provider,email:identity.email,name:identity.name};
-  match.activated=true;
-  showToast('Account activated! You\'re now signed in as '+match.name+'. From now on, just tap Continue with '+(provider==='google'?'Google':'Apple')+' — no ID needed again.');
-  loginSuccess(match); closeAuth();
-  setTimeout(function(){openPartnerDashboard();},400);
+/* Partner Google/Apple button — uses the SAME real Supabase OAuth as buyers.
+   No bypass: signing in this way only grants Partner Dashboard access if the
+   returning account is already an approved seller/garage (its profile role is
+   set by admin approval). A brand-new Google user simply becomes a buyer and
+   must go through the Apply → admin approval flow to become a partner. */
+async function socialLoginPartner(provider){
+  return socialLogin(provider);
 }
 
 async function doAdminLogin(){
@@ -7779,9 +7769,25 @@ async function renderApplications(){
   c.innerHTML=h;
 }
 async function approvePartnerApp(id){
-  var res=await sb.from('partner_applications').update({status:'approved'}).eq('id',id);
+  var appRes=await sb.from('partner_applications').select('*').eq('id',id).single();
+  var app=appRes.data;
+  var res=await sb.from('partner_applications').update({status:'approved'}).eq('id',id).select();
   if(res.error){showToast('Could not approve: '+res.error.message);return;}
-  showToast('Application approved — now contact them on WhatsApp to complete Quick Sign Up');
+  if(!res.data||res.data.length===0){showToast('Approve was blocked — please sign in through the Admin login for full permissions.');return;}
+  // Promote the matching user account (if they self-signed-up) to a real,
+  // active partner. This is the ONLY place seller/garage powers are granted.
+  var assignedId=null;
+  if(app && app.email){
+    var role=app.applicant_type==='garage'?'garage':'seller';
+    var profSel=await sb.from('profiles').select('id,partsouq_id').eq('email',app.email);
+    var prof=(profSel.data&&profSel.data[0])||null;
+    if(prof){
+      assignedId=prof.partsouq_id||((role==='seller'?'PSS-':'PSG-')+Math.floor(10000+Math.random()*90000));
+      var up=await sb.from('profiles').update({role:role, activated:true, partsouq_id:assignedId, cycle_start:new Date().toISOString()}).eq('id',prof.id).select();
+      if(up.error || !up.data || up.data.length===0){ showToast('Approved, but promoting the account was blocked — check admin permissions.'); }
+    }
+  }
+  showToast(assignedId ? ('Approved — partner is now active. PartSouq ID: '+assignedId) : 'Application approved — no matching self-signup account; contact them to complete sign up.');
   renderApplications();
   refreshAdminBadges();
 }
