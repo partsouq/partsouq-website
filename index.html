@@ -294,6 +294,14 @@ button{cursor:pointer;border:none;}
 .pcsave{font-size:12px !important;font-weight:800 !important;color:#00a064 !important;}
 .pcdel{font-size:11.5px !important;color:#475569 !important;}
 .pc-tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:#065f46;background:#e6faf3;border:1px solid #c8eedd;border-radius:20px;padding:3px 9px;align-self:flex-start;margin-top:2px;}
+/* ── Homepage themed product carousels ── */
+.home-row{margin-bottom:32px;}
+.prow-wrap{position:relative;}
+.prow{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;padding:4px 2px 10px;scroll-snap-type:x proximity;-ms-overflow-style:none;scrollbar-width:none;}
+.prow::-webkit-scrollbar{display:none;}
+.prow .pcard{flex:0 0 auto;width:212px;scroll-snap-align:start;}
+@media(max-width:560px){.prow .pcard{width:158px;}}
+.prow-wrap .cat-arrow{top:130px;}
 
 /* Filters */
 .fr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
@@ -1591,6 +1599,11 @@ button .ico{vertical-align:middle;margin-right:4px;}
 </div>
 
 <!-- PRODUCT GRID -->
+<!-- HOMEPAGE THEMED PRODUCT CAROUSELS (Noon-style) -->
+<div class="sec" id="home-rows" style="background:#fff;padding-top:10px;padding-bottom:0;">
+  <div class="w" id="home-rows-w"></div>
+</div>
+
 <div id="shop" class="sec">
   <div class="w">
     <div class="sec-h"><h2>Available Parts <span class="tg" id="cat-lbl">All Categories</span></h2><a href="#">View all 12,000+ →</a></div>
@@ -2188,7 +2201,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v83</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v84</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2628,7 +2641,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v83-selleredit';
+window.PARTSOUQ_BUILD='v84-homerows';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -2868,6 +2881,46 @@ function cwSearch(){
 var PRODS=[]; // populated entirely by loadRealListings() from Supabase — no more hardcoded demo data
 var wish={},aC='all',verO=false,emV='';
 function st(r){var s='',f=Math.floor(r),h=(r-f)>=.5;for(var i=0;i<f;i++)s+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>';if(h)s+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="12 2 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/></svg></span>';for(var i=f+(h?1:0);i<5;i++)s+='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#ddd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>';return s;}
+function productCardHTML(p){
+  var sv=p.disc||0; var wl=wish[p.id];
+  var out='<div class="pcard" data-pid="'+p.id+'">';
+  out+="<div class=\"pci\"><div class=\"pcib\" style=\"background-image:url('"+p.img+"');\"></div>";
+  out+='<div class="pcard-bgs">';
+  if(sv>0) out+='<span class="badge b-s">-'+sv+'%</span>';
+  if(p.ver) out+='<span class="badge b-v">&#10003; Verified</span>';
+  out+='</div>';
+  out+='<div class="pwsh'+(wl?' on':'')+'" data-wish="'+p.id+'"><i class="'+(wl?'fas':'far')+' fa-heart"></i></div>';
+  out+='<button class="pc-add" data-checkout="'+p.id+'" title="Order this part">+</button>';
+  out+='</div>';
+  out+='<div class="pcb">';
+  var chips='';
+  if(p.cond) chips+='<span class="pc-spec">'+esc(p.cond)+'</span>';
+  if(p.brand) chips+='<span class="pc-spec">'+esc(p.brand)+'</span>';
+  if(p.warranty && p.warranty!=='No warranty' && p.warranty!=='—') chips+='<span class="pc-spec">'+esc(p.warranty)+'</span>';
+  if(chips) out+='<div class="pc-specs">'+chips+'</div>';
+  out+='<div class="pctit">'+esc(p.title)+'</div>';
+  if(p.rev>0) out+='<div class="pcst">'+st(p.rating)+'<span class="rc">('+p.rev+')</span></div>';
+  if(p.compat) out+='<div style="font-size:11px;color:#00a064;font-weight:600;">'+esc(p.compat)+'</div>';
+  out+='<div class="pcpr"><span class="pcprice">AED '+p.price+'</span>';
+  if(sv>0) out+='<span class="pcwas">'+p.was+'</span><span class="pcsave">-'+sv+'%</span>';
+  out+='</div>';
+  var _delTxt = p.deliveryIncluded ? 'Free delivery' : (p.deliveryFee!=null&&p.deliveryFee>0 ? 'Delivery: AED '+p.deliveryFee : (p.deliveryFee===0?'Free delivery':'Delivery: '+esc(p.del)));
+  out+='<div class="pcdel">'+_delTxt+'</div>';
+  out+='<div class="pc-tag"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#065f46" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Cash on Delivery</div>';
+  out+='</div></div>';
+  return out;
+}
+function attachCardEvents(container){
+  if(!container) return;
+  container.onclick=function(e){
+    var ct=e.target.closest('[data-checkout]');
+    var ws=e.target.closest('[data-wish]');
+    if(ct){ openCheckout(parseInt(ct.dataset.checkout,10)); return; }
+    if(ws){ tw(parseInt(ws.dataset.wish,10),ws); return; }
+    var card=e.target.closest('.pcard');
+    if(card && card.dataset.pid){ openMdl(parseInt(card.dataset.pid,10)); }
+  };
+}
 function renderP(prods){
   var g=$el('pg');
   $safe('frc',function(e){e.textContent=prods.length+' result'+(prods.length!==1?'s':'');});
@@ -2876,53 +2929,37 @@ function renderP(prods){
     g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:48px 0;"><p style="font-size:15px;font-weight:700;margin-bottom:6px;">No parts found</p></div>';
     return;
   }
-  var out='';
-  prods.forEach(function(p){
-    var sv=p.disc||0;
-    var wl=wish[p.id];
-    out+='<div class="pcard">';
-    out+="<div class=\"pci\"><div class=\"pcib\" style=\"background-image:url('"+p.img+"');\"></div>";
-    out+='<div class="pcard-bgs">';
-    if(sv>0) out+='<span class="badge b-s">-'+sv+'%</span>';
-    if(p.ver) out+='<span class="badge b-v">&#10003; Verified</span>';
-    out+='</div>';
-    out+='<div class="pwsh'+(wl?' on':'')+'" data-wish="'+p.id+'"><i class="'+(wl?'fas':'far')+' fa-heart"></i></div>';
-    out+='<button class="pc-add" data-checkout="'+p.id+'" title="Order this part">+</button>';
-    out+='</div>';
-    out+='<div class="pcb">';
-    var chips='';
-    if(p.cond) chips+='<span class="pc-spec">'+esc(p.cond)+'</span>';
-    if(p.brand) chips+='<span class="pc-spec">'+esc(p.brand)+'</span>';
-    if(p.warranty && p.warranty!=='No warranty' && p.warranty!=='—') chips+='<span class="pc-spec">'+esc(p.warranty)+'</span>';
-    if(chips) out+='<div class="pc-specs">'+chips+'</div>';
-    out+='<div class="pctit">'+esc(p.title)+'</div>';
-    if(p.rev>0) out+='<div class="pcst">'+st(p.rating)+'<span class="rc">('+p.rev+')</span></div>';
-    if(p.compat) out+='<div style="font-size:11px;color:#00a064;font-weight:600;">'+esc(p.compat)+'</div>';
-    out+='<div class="pcpr"><span class="pcprice">AED '+p.price+'</span>';
-    if(sv>0) out+='<span class="pcwas">'+p.was+'</span><span class="pcsave">-'+sv+'%</span>';
-    out+='</div>';
-    var _delTxt = p.deliveryIncluded ? 'Free delivery' : (p.deliveryFee!=null&&p.deliveryFee>0 ? 'Delivery: AED '+p.deliveryFee : (p.deliveryFee===0?'Free delivery':'Delivery: '+esc(p.del)));
-    out+='<div class="pcdel">'+_delTxt+'</div>';
-    out+='<div class="pc-tag"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#065f46" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Cash on Delivery</div>';
-    out+='</div></div>';
-  });
+  var out=''; prods.forEach(function(p){ out+=productCardHTML(p); });
   g.innerHTML=out;
-  // Event delegation — one listener handles all card interactions
-  g.onclick=function(e){
-    var dt=e.target.closest('[data-details]');
-    var ct=e.target.closest('[data-checkout]');
-    var ws=e.target.closest('[data-wish]');
-    if(dt){ openMdl(parseInt(dt.dataset.details,10)); return; }
-    if(ct){ openCheckout(parseInt(ct.dataset.checkout,10)); return; }
-    if(ws){ tw(parseInt(ws.dataset.wish,10),ws); return; }
-    // Click anywhere else on card = open details
-    var card=e.target.closest('.pcard');
-    if(card){
-      var btn=card.querySelector('[data-details]');
-      if(btn) openMdl(parseInt(btn.dataset.details,10));
-    }
-  };
+  attachCardEvents(g);
 }
+/* Noon-style themed horizontal product carousels on the homepage */
+function renderHomeRows(){
+  var w=$el('home-rows-w'); if(!w) return;
+  var real=PRODS.filter(function(p){return p._real;});
+  if(!real.length){ w.innerHTML=''; return; }
+  var rows=[];
+  var deals=real.filter(function(p){return (p.disc||0)>0;}).sort(function(a,b){return (b.disc||0)-(a.disc||0);});
+  if(deals.length>=2) rows.push({key:'deals',title:"Today's Deals",sub:'Biggest savings right now',items:deals.slice(0,12)});
+  rows.push({key:'new',title:'Newly Listed Parts',sub:'Fresh from verified sellers',items:real.slice(0,12)});
+  var verified=real.filter(function(p){return p.ver;});
+  if(verified.length>=2) rows.push({key:'verified',title:'PartSouq Verified Picks',sub:'Checked against Mulkiya before dispatch',items:verified.slice(0,12)});
+  var h='';
+  rows.forEach(function(r){
+    h+='<div class="home-row">';
+    h+='<div class="sec-h"><h2>'+esc(r.title)+' <span class="tg">'+esc(r.sub)+'</span></h2><a href="javascript:void(0)" onclick="s2(\'shop\')">See all &#8594;</a></div>';
+    h+='<div class="prow-wrap">';
+    h+='<button class="cat-arrow left" onclick="prowScroll(\'prow-'+r.key+'\',-1)" aria-label="Scroll left">&#8249;</button>';
+    h+='<div class="prow" id="prow-'+r.key+'">';
+    r.items.forEach(function(p){ h+=productCardHTML(p); });
+    h+='</div>';
+    h+='<button class="cat-arrow right" onclick="prowScroll(\'prow-'+r.key+'\',1)" aria-label="Scroll right">&#8250;</button>';
+    h+='</div></div>';
+  });
+  w.innerHTML=h;
+  attachCardEvents(w);
+}
+function prowScroll(id,dir){var s=document.getElementById(id);if(s)s.scrollBy({left:dir*Math.max(300,Math.round(s.clientWidth*0.8)),behavior:'smooth'});}
 
 function applyF(){var p=PRODS.filter(function(x){if(aC!=='all'&&x.cat!==aC)return false;if(verO&&!x.ver)return false;if(emV&&x.em!==emV)return false;return true;});renderP(p);}
 function catScroll(dir){var s=document.getElementById('catg-strip');if(s)s.scrollBy({left:dir*Math.max(260,Math.round(s.clientWidth*0.7)),behavior:'smooth'});}
@@ -4602,6 +4639,7 @@ async function loadRealListings(){
     });
   });
   renderP(PRODS);
+  renderHomeRows();
 }
 if(typeof window!=='undefined'){ window.addEventListener('load', loadRealListings); }
 
