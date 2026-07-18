@@ -265,6 +265,36 @@ button{cursor:pointer;border:none;}
 .btn-dt{padding:8px 10px;border-radius:7px;background:#f0f0f0;color:var(--ink);font-size:12px;font-weight:600;border:none;cursor:pointer;}
 .btn-dt:hover{background:#e0e0e0;}
 
+/* ── Noon-style product cards (redesign) ── */
+.pg{grid-template-columns:repeat(5,1fr);gap:14px;}
+@media(max-width:1100px){.pg{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:820px){.pg{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:560px){.pg{grid-template-columns:repeat(2,1fr);gap:10px;}}
+.pcard{background:#fff !important;border:1px solid #eef1f5 !important;border-radius:14px !important;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .2s,transform .2s,border-color .2s;}
+.pcard:hover{box-shadow:0 10px 30px rgba(0,0,0,.12) !important;transform:translateY(-3px);border-color:#e2e8f0 !important;}
+.pci{position:relative;aspect-ratio:1/1 !important;height:auto !important;background:#fff !important;border-bottom:1px solid #f4f6f9 !important;overflow:hidden;}
+.pcib{width:100%;height:100%;background-size:cover !important;background-position:center;background-repeat:no-repeat;padding:0 !important;box-sizing:border-box;transition:transform .35s;}
+.pcard:hover .pcib{transform:scale(1.05);}
+.pcard-bgs{position:absolute;top:10px;left:0 !important;display:flex;flex-direction:column;gap:5px;align-items:flex-start;}
+.pcard-bgs .badge{border-radius:0 6px 6px 0 !important;font-size:11px !important;font-weight:800 !important;padding:4px 9px !important;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.b-s{background:#e11900 !important;color:#fff !important;} .b-v{background:#065f46 !important;color:#fff !important;} .b-n{background:#1d4ed8 !important;color:#fff !important;}
+.pwsh{position:absolute;top:10px !important;right:10px !important;width:32px !important;height:32px !important;border-radius:50% !important;background:#fff !important;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c7ccd1 !important;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.16) !important;transition:color .15s,transform .15s;z-index:3;}
+.pwsh:hover{transform:scale(1.08);} .pwsh.on{color:#e11900 !important;}
+.pc-add{position:absolute;right:12px;bottom:12px;width:36px;height:36px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;box-shadow:0 2px 10px rgba(0,0,0,.14);color:#0f172a;font-size:22px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding-bottom:3px;z-index:3;transition:all .15s;}
+.pc-add:hover{background:#00c47a;color:#fff;border-color:#00c47a;transform:scale(1.06);}
+.pcb{padding:12px 13px 14px !important;flex:1;display:flex;flex-direction:column;gap:5px !important;}
+.pc-specs{display:flex;flex-wrap:wrap;gap:5px;}
+.pc-spec{font-size:10px;font-weight:600;color:#475569;background:#f4f6f9;border-radius:5px;padding:2px 7px;white-space:nowrap;}
+.pctit{font-size:13.5px !important;font-weight:600 !important;color:#1f2937 !important;line-height:1.35 !important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:37px;}
+.pcst{display:flex;align-items:center;gap:3px;font-size:11.5px;color:#f5a623;}
+.pcst .rc{font-size:11px;color:#888;margin-left:2px;}
+.pcpr{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.pcprice{font-size:18px !important;font-weight:800 !important;color:#1f2937 !important;}
+.pcwas{font-size:12px !important;color:#9aa3ad !important;text-decoration:line-through;}
+.pcsave{font-size:12px !important;font-weight:800 !important;color:#00a064 !important;}
+.pcdel{font-size:11.5px !important;color:#475569 !important;}
+.pc-tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:#065f46;background:#e6faf3;border:1px solid #c8eedd;border-radius:20px;padding:3px 9px;align-self:flex-start;margin-top:2px;}
+
 /* Filters */
 .fr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
 .fr select{padding:8px 12px;border:1.5px solid var(--li);border-radius:8px;font-size:13px;background:#fff;outline:none;cursor:pointer;}
@@ -988,6 +1018,27 @@ section[id],div[id]{scroll-margin-top:120px;}
 }
 .ct.on .ct-name{color:#fff;background:rgba(0,196,122,.2);}
 
+/* ── Noon-style category strip (redesign) ── */
+.catg{display:flex !important;flex-wrap:nowrap;gap:20px;overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;padding:8px 2px 10px;scroll-snap-type:x proximity;grid-template-columns:none !important;-ms-overflow-style:none;scrollbar-width:none;}
+.catg::-webkit-scrollbar{display:none;}
+.catg-wrap{position:relative;}
+.cat-arrow{position:absolute;top:58px;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;box-shadow:0 3px 12px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;color:#334155;font-size:24px;line-height:1;padding-bottom:3px;}
+.cat-arrow:hover{background:#f8fafc;box-shadow:0 5px 16px rgba(0,0,0,.22);}
+.cat-arrow.left{left:-10px;} .cat-arrow.right{right:-10px;}
+@media(max-width:640px){.cat-arrow{display:none;}}
+.ct{flex:0 0 auto !important;width:124px;display:flex;flex-direction:column;align-items:center;cursor:pointer;background:transparent !important;border:none !important;box-shadow:none !important;border-radius:0 !important;overflow:visible !important;scroll-snap-align:start;transition:transform .18s;}
+.ct::before{display:none !important;} .ct::after{display:none !important;}
+.ct-cave{width:116px !important;height:116px !important;aspect-ratio:auto !important;border-radius:28px !important;overflow:hidden !important;background:#f5f6f8 !important;box-shadow:0 2px 12px rgba(0,0,0,.10) !important;display:flex;align-items:center;justify-content:center;transition:box-shadow .18s,transform .18s;}
+.ct-cave::after{display:none !important;}
+.ct-icon{width:100% !important;height:100% !important;object-fit:cover !important;object-position:center !important;display:block;-webkit-mask-image:none !important;mask-image:none !important;filter:none !important;transition:transform .3s;}
+.ct-name{display:block !important;width:100%;margin-top:10px;padding:0 2px !important;text-align:center;font-size:13.5px !important;font-weight:700 !important;letter-spacing:0 !important;text-transform:none !important;color:#1f2937 !important;background:transparent !important;border:none !important;line-height:1.3;}
+.ct:hover{transform:translateY(-3px);}
+.ct:hover .ct-cave{box-shadow:0 8px 22px rgba(0,0,0,.20) !important;}
+.ct:hover .ct-icon{transform:scale(1.06);}
+.ct:hover .ct-name{color:#00a064 !important;}
+.ct.on .ct-cave{box-shadow:0 0 0 2.5px #00c47a,0 4px 14px rgba(0,0,0,.18) !important;}
+.ct.on .ct-name{color:#00a064 !important;background:transparent !important;}
+
 /* ── Logo ── */
 .logo-mark{
   width:52px;height:52px;
@@ -1460,7 +1511,9 @@ button .ico{vertical-align:middle;margin-right:4px;}
 <div class="sec" id="categories" style="background:#fff;">
   <div class="w">
     <div class="sec-h"><h2>Shop by Category</h2><a href="javascript:void(0)" onclick="s2('shop')">View all &#8594;</a></div>
-    <div class="catg">
+    <div class="catg-wrap">
+    <button class="cat-arrow left" onclick="catScroll(-1)" aria-label="Scroll left">&#8249;</button>
+    <div class="catg" id="catg-strip">
       <div class="ct on ctg0" id="cat-all" onclick="fc('all',this)">
         <div class="ct-cave">
           <img class="ct-icon" src="data:image/jpeg;base64,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" alt="All Parts">
@@ -1515,6 +1568,8 @@ button .ico{vertical-align:middle;margin-right:4px;}
         </div>
         <span class="ct-name">Book Garage</span>
       </div>
+    </div>
+    <button class="cat-arrow right" onclick="catScroll(1)" aria-label="Scroll right">&#8250;</button>
     </div>
   </div>
 </div>
@@ -2133,7 +2188,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v80</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v83</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2288,20 +2343,11 @@ button .ico{vertical-align:middle;margin-right:4px;}
 </div>
 
 <div class="modal-bg" id="seller-edit-listing-modal" onclick="if(false&&event.target===this)closeGenericModal('seller-edit-listing-modal')">
-  <div class="modal" style="max-width:480px;">
+  <div class="modal" style="max-width:560px;">
     <div class="modal-hdr"><h3>Edit Listing</h3><button onclick="closeGenericModal('seller-edit-listing-modal')" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:13px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div>
     <div class="modal-body">
       <input type="hidden" id="sel-edit-id">
-      <div class="form-g" style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Part Name *</label><input id="sel-edit-name-manual" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
-      <div class="form-g" style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">OEM / Part Number *</label><input id="sel-edit-oem" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
-      <div style="display:flex;gap:10px;margin-bottom:11px;">
-        <div style="flex:1;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Price (AED) *</label><input type="number" id="sel-edit-price" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
-        <div style="flex:1;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Discount %</label><input type="number" id="sel-edit-discount" min="0" max="90" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></div>
-      </div>
-      <div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Warranty *</label><div style="display:flex;gap:8px;"><input type="number" id="sel-edit-war-num" min="1" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-war-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="hours">Hour(s)</option><option value="days">Day(s)</option><option value="months" selected>Month(s)</option><option value="years">Year(s)</option></select></div></div>
-      <div style="margin-bottom:16px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Estimated Delivery Time *</label><div style="display:flex;gap:8px;"><input type="number" id="sel-edit-del-num" min="1" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-del-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;"><option value="hours">Hour(s)</option><option value="days" selected>Day(s)</option></select></div></div>
-      <button class="btn btn-g" onclick="saveSellerEditListing()">Save Changes</button>
-      <button class="btn btn-out" onclick="closeGenericModal('seller-edit-listing-modal')" style="margin-left:8px;">Cancel</button>
+      <div id="sel-edit-body"></div>
     </div>
   </div>
 </div>
@@ -2582,7 +2628,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v80-orderphotos';
+window.PARTSOUQ_BUILD='v83-selleredit';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -2839,23 +2885,26 @@ function renderP(prods){
     out+='<div class="pcard-bgs">';
     if(sv>0) out+='<span class="badge b-s">-'+sv+'%</span>';
     if(p.ver) out+='<span class="badge b-v">&#10003; Verified</span>';
-    if(p.isNew) out+='<span class="badge b-n">NEW</span>';
     out+='</div>';
-    out+='<div class="pwsh'+(wl?' on':'')+'" data-wish="'+p.id+'">';
-    out+='<i class="'+(wl?'fas':'far')+' fa-heart"></i></div></div>';
+    out+='<div class="pwsh'+(wl?' on':'')+'" data-wish="'+p.id+'"><i class="'+(wl?'fas':'far')+' fa-heart"></i></div>';
+    out+='<button class="pc-add" data-checkout="'+p.id+'" title="Order this part">+</button>';
+    out+='</div>';
     out+='<div class="pcb">';
-    out+='<div class="pcbrand">'+esc(p.brand)+' &middot; '+esc(p.cond)+'</div>';
+    var chips='';
+    if(p.cond) chips+='<span class="pc-spec">'+esc(p.cond)+'</span>';
+    if(p.brand) chips+='<span class="pc-spec">'+esc(p.brand)+'</span>';
+    if(p.warranty && p.warranty!=='No warranty' && p.warranty!=='—') chips+='<span class="pc-spec">'+esc(p.warranty)+'</span>';
+    if(chips) out+='<div class="pc-specs">'+chips+'</div>';
     out+='<div class="pctit">'+esc(p.title)+'</div>';
-    out+='<div class="pccomp">'+esc(p.compat)+'</div>';
+    if(p.rev>0) out+='<div class="pcst">'+st(p.rating)+'<span class="rc">('+p.rev+')</span></div>';
+    if(p.compat) out+='<div style="font-size:11px;color:#00a064;font-weight:600;">'+esc(p.compat)+'</div>';
     out+='<div class="pcpr"><span class="pcprice">AED '+p.price+'</span>';
     if(sv>0) out+='<span class="pcwas">'+p.was+'</span><span class="pcsave">-'+sv+'%</span>';
     out+='</div>';
     var _delTxt = p.deliveryIncluded ? 'Free delivery' : (p.deliveryFee!=null&&p.deliveryFee>0 ? 'Delivery: AED '+p.deliveryFee : (p.deliveryFee===0?'Free delivery':'Delivery: '+esc(p.del)));
     out+='<div class="pcdel">'+_delTxt+'</div>';
-    out+='<div class="pcta">';
-    out+='<button class="btn-cart" data-checkout="'+p.id+'"> Add to Cart</button>';
-    out+='<button class="btn-dt" data-details="'+p.id+'">Details</button>';
-    out+='</div></div></div>';
+    out+='<div class="pc-tag"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#065f46" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Cash on Delivery</div>';
+    out+='</div></div>';
   });
   g.innerHTML=out;
   // Event delegation — one listener handles all card interactions
@@ -2876,6 +2925,7 @@ function renderP(prods){
 }
 
 function applyF(){var p=PRODS.filter(function(x){if(aC!=='all'&&x.cat!==aC)return false;if(verO&&!x.ver)return false;if(emV&&x.em!==emV)return false;return true;});renderP(p);}
+function catScroll(dir){var s=document.getElementById('catg-strip');if(s)s.scrollBy({left:dir*Math.max(260,Math.round(s.clientWidth*0.7)),behavior:'smooth'});}
 function fc(cat,el){aC=cat;document.querySelectorAll('.ct').forEach(function(t){t.classList.remove('on');});if(el)el.classList.add('on');else{var t=document.getElementById('cat-'+cat);if(t)t.classList.add('on');}($el('cat-lbl')||{}).textContent=cat==='all'?'All Categories':cat;applyF();document.getElementById('shop').scrollIntoView({behavior:'smooth'});}
 function sortP(v){var p=PRODS.filter(function(x){if(aC!=='all'&&x.cat!==aC)return false;if(verO&&!x.ver)return false;if(emV&&x.em!==emV)return false;return true;});if(v==='low')p.sort(function(a,b){return a.price-b.price;});else if(v==='high')p.sort(function(a,b){return b.price-a.price;});else if(v==='rating')p.sort(function(a,b){return b.rating-a.rating;});else if(v==='new')p.sort(function(a,b){return(b.isNew?1:0)-(a.isNew?1:0);});renderP(p);}
 function filterVer(c){verO=c;applyF();}function filterEm(v){emV=v;applyF();}
@@ -4147,51 +4197,125 @@ async function loadSellerMyListings(){
     h+='<div style="font-size:12px;color:#888;">OEM: '+esc(item.oem)+' &middot; AED '+item.price+'</div></div>';
     h+='<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+lbl[1]+';color:'+lbl[2]+';">'+lbl[0]+'</span>';
     h+='<button onclick="openSellerEditListing(\''+item.id+'\')" style="font-size:12px;padding:6px 12px;border-radius:6px;background:#f0f0f0;border:none;cursor:pointer;color:#555;white-space:nowrap;">Edit</button>';
+    if(item.deletion_requested){
+      h+='<span style="font-size:11px;padding:6px 10px;border-radius:6px;background:#fef3c7;color:#92400e;font-weight:700;white-space:nowrap;margin-left:6px;">Deletion requested</span>';
+    } else {
+      h+='<button onclick="requestListingDeletion(\''+item.id+'\')" style="font-size:12px;padding:6px 12px;border-radius:6px;background:#fee2e2;border:none;cursor:pointer;color:#b91c1c;white-space:nowrap;margin-left:6px;">Request Deletion</button>';
+    }
     h+='</div>';
   });
   h+='</div>';
   el.innerHTML=h;
 }
+var SEL_CATS=['Engine','Brakes','Suspension','Body','Electrical','AC','Steering','Filters','Tyres & Wheels','Other'];
+var SEL_CONDS=['New','Used','Refurbished'];
+window._selPhotos={main:'',front:'',side:'',top:'',back:''};
+function _si(label,id,val,type,attrs){ return '<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">'+label+'</label><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val==null?'':val)+'" '+(attrs||'')+' style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;">'; }
+function _ss(label,id,options,sel){ var o=options.map(function(x){return '<option'+(String(sel)===String(x)?' selected':'')+'>'+esc(x)+'</option>';}).join(''); return '<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;background:#fff;">'+o+'</select>'; }
 function openSellerEditListing(id){
   var l=(window._sellerListings||[]).find(function(x){return x.id===id;});
   if(!l){showToast('Listing not found');return;}
-  $el('sel-edit-id').value=id;
-  $el('sel-edit-name-manual').value=l.name||'';
-  $el('sel-edit-oem').value=l.oem||'';
-  $el('sel-edit-price').value=l.price||'';
-  $el('sel-edit-discount').value=l.discount_percent||'';
+  var b=$el('sel-edit-body'); if(!b) return;
   var warMatch=(l.warranty_value&&l.warranty_unit)?l.warranty_value:'';
-  $el('sel-edit-war-num').value=warMatch;
-  if(l.warranty_unit) $el('sel-edit-war-unit').value=l.warranty_unit;
+  var warUnit=l.warranty_unit||'months';
   var delMatch=(l.delivery_time||'').match(/(\d+)\s*(hour|day)/i);
-  $el('sel-edit-del-num').value=delMatch?delMatch[1]:'';
-  if(delMatch) $el('sel-edit-del-unit').value=delMatch[2].toLowerCase()==='hour'?'hours':'days';
+  var delNum=delMatch?delMatch[1]:''; var delUnit=(delMatch&&delMatch[2].toLowerCase()==='hour')?'hours':'days';
+  window._selPhotos={main:l.main_photo_url||'',front:l.photo_front_url||'',side:l.photo_side_url||'',top:l.photo_top_url||'',back:l.photo_back_url||''};
+  var row=function(a,bb){return '<div style="display:flex;gap:10px;margin-bottom:11px;"><div style="flex:1;">'+a+'</div><div style="flex:1;">'+bb+'</div></div>';};
+  var h='<input type="hidden" id="sel-edit-id" value="'+esc(id)+'">';
+  h+='<div style="margin-bottom:11px;">'+_si('Part Name *','sel-edit-name-manual',l.name)+'</div>';
+  h+='<div style="margin-bottom:11px;">'+_si('OEM / Part Number *','sel-edit-oem',l.oem)+'</div>';
+  h+=row(_ss('Category','sel-edit-cat',SEL_CATS,l.category), _ss('Condition *','sel-edit-cond',SEL_CONDS,l.condition));
+  h+=row(_si('Car Brand','sel-edit-brand',l.car_brand), _si('Car Model','sel-edit-model',l.car_model));
+  h+=row(_si('Year Range','sel-edit-yr',l.year_range), _si('Car Spec','sel-edit-spec',l.car_spec));
+  h+=row(_si('Engine No.','sel-edit-eng',l.engine_no), _si('Chassis No.','sel-edit-chassis',l.chassis_no));
+  h+=row(_si('Price (AED) *','sel-edit-price',l.price,'number'), _si('Discount %','sel-edit-discount',l.discount_percent,'number','min="0" max="90"'));
+  h+=row(_ss('Delivery','sel-edit-del-type',['included','separate'], (l.delivery_included===false?'separate':'included')), _si('Delivery Fee (AED)','sel-edit-del',l.delivery_fee,'number'));
+  h+='<div style="margin-bottom:11px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Estimated Delivery Time *</label><div style="display:flex;gap:8px;"><input id="sel-edit-del-num" type="number" min="1" value="'+esc(delNum)+'" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-del-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;background:#fff;"><option value="days"'+(delUnit==='days'?' selected':'')+'>Day(s)</option><option value="hours"'+(delUnit==='hours'?' selected':'')+'>Hour(s)</option></select></div></div>';
+  h+='<div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Warranty *</label><div style="display:flex;gap:8px;"><input id="sel-edit-war-num" type="number" min="1" value="'+esc(warMatch)+'" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;"><select id="sel-edit-war-unit" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;background:#fff;"><option value="days"'+(warUnit==='days'?' selected':'')+'>Day(s)</option><option value="months"'+(warUnit==='months'?' selected':'')+'>Month(s)</option><option value="years"'+(warUnit==='years'?' selected':'')+'>Year(s)</option></select></div></div>';
+  h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Photos — tap to zoom, Replace or &times; to change</label>';
+  h+='<div id="sel-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px;margin-bottom:16px;"></div>';
+  h+='<button class="btn btn-g" onclick="saveSellerEditListing()">Save Changes</button>';
+  h+='<button class="btn btn-out" onclick="closeGenericModal(\'seller-edit-listing-modal\')" style="margin-left:8px;">Cancel</button>';
+  b.innerHTML=h;
+  renderSelPhotos();
   openGenericModal('seller-edit-listing-modal');
 }
+function renderSelPhotos(){
+  var c=$el('sel-photos'); if(!c) return;
+  var p=window._selPhotos||{};
+  [{k:'main',label:'Main'},{k:'front',label:'Front'},{k:'side',label:'Side'},{k:'top',label:'Top'},{k:'back',label:'Back'}].forEach(function(){});
+  var slots=[{k:'main',label:'Main'},{k:'front',label:'Front'},{k:'side',label:'Side'},{k:'top',label:'Top'},{k:'back',label:'Back'}];
+  var h='';
+  slots.forEach(function(s){
+    var url=p[s.k]||'';
+    h+='<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:6px;text-align:center;background:#f8fafc;">';
+    h+='<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">'+s.label+'</div>';
+    if(url){
+      h+='<div style="position:relative;"><img src="'+esc(url)+'" onclick="openImgZoom(this.src)" title="Zoom" style="width:100%;height:64px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid #e2e8f0;"><button type="button" onclick="selRemovePhoto(\''+s.k+'\')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.6);border:none;color:#fff;font-size:11px;cursor:pointer;line-height:1;">&times;</button></div>';
+      h+='<label style="display:block;margin-top:4px;font-size:10.5px;color:#00a064;font-weight:700;cursor:pointer;">Replace<input type="file" accept="image/*" style="display:none;" onchange="selSlotUpload(this,\''+s.k+'\')"></label>';
+    } else {
+      h+='<label style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:64px;border:1.5px dashed #cbd5e1;border-radius:6px;cursor:pointer;color:#94a3b8;font-size:10px;"><span style="font-size:18px;line-height:1;">+</span>Add<input type="file" accept="image/*" style="display:none;" onchange="selSlotUpload(this,\''+s.k+'\')"></label>';
+    }
+    h+='</div>';
+  });
+  c.innerHTML=h;
+}
+async function selSlotUpload(input,slot){
+  var file=input.files[0]; if(!file) return;
+  showToast('Uploading…');
+  try{
+    var compressed=await compressImage(file);
+    var path='seller-added/'+slot+'-'+Date.now()+'.jpg';
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
+    if(up.error) throw new Error(up.error.message);
+    window._selPhotos[slot]=sb.storage.from('listing-photos').getPublicUrl(path).data.publicUrl;
+    renderSelPhotos();
+    showToast(slot.charAt(0).toUpperCase()+slot.slice(1)+' photo updated');
+  }catch(err){ showToast('Upload failed: '+(err.message||err)); }
+}
+function selRemovePhoto(slot){ window._selPhotos[slot]=''; renderSelPhotos(); }
 async function saveSellerEditListing(){
   var id=$el('sel-edit-id').value;
-  var name=($el('sel-edit-name-manual')||{}).value||'';
-  var oem=($el('sel-edit-oem')||{}).value||'';
-  var price=($el('sel-edit-price')||{}).value||'';
-  var discount=($el('sel-edit-discount')||{}).value||'';
-  var warNum=($el('sel-edit-war-num')||{}).value||'';
-  var warUnit=($el('sel-edit-war-unit')||{}).value||'';
-  var delNum=($el('sel-edit-del-num')||{}).value||'';
-  var delUnit=($el('sel-edit-del-unit')||{}).value||'days';
+  var g=function(x){return ($el(x)||{}).value||'';};
+  var name=g('sel-edit-name-manual'), oem=g('sel-edit-oem'), price=g('sel-edit-price');
+  var warNum=g('sel-edit-war-num'), delNum=g('sel-edit-del-num');
   if(!name||!oem||!price){showToast('Please fill in Part Name, OEM, and Price');return;}
   if(!warNum){showToast('Warranty is required');return;}
   if(!delNum){showToast('Estimated Delivery Time is required');return;}
+  var warUnit=g('sel-edit-war-unit')||'months';
+  var delUnit=g('sel-edit-del-unit')||'days';
+  var delType=g('sel-edit-del-type')||'included';
+  var delFee=g('sel-edit-del');
+  var ph=window._selPhotos||{};
   var res=await sb.from('listings').update({
-    name:name, oem:oem, price:parseFloat(price)||0,
-    discount_percent:parseInt(discount)||0,
+    name:name, oem:oem, category:g('sel-edit-cat')||null, condition:g('sel-edit-cond')||null,
+    car_brand:g('sel-edit-brand')||null, car_model:g('sel-edit-model')||null,
+    year_range:g('sel-edit-yr')||null, car_spec:g('sel-edit-spec')||null,
+    engine_no:g('sel-edit-eng')||null, chassis_no:g('sel-edit-chassis')||null,
+    price:parseFloat(price)||0, discount_percent:parseInt(g('sel-edit-discount'))||0,
+    delivery_fee:(delType==='separate'?(parseFloat(delFee)||0):0), delivery_included:(delType!=='separate'),
     warranty_value:parseInt(warNum), warranty_unit:warUnit,
-    delivery_time: delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days'))
-  }).eq('id',id);
+    delivery_time: delNum+' '+(delUnit==='hours'?(delNum==='1'?'Hour':'Hours'):(delNum==='1'?'Day':'Days')),
+    main_photo_url:(ph.main||null), photo_front_url:(ph.front||null), photo_side_url:(ph.side||null), photo_top_url:(ph.top||null), photo_back_url:(ph.back||null)
+  }).eq('id',id).select();
   if(res.error){showToast('Could not save: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('Could not save — you can only edit your own listings.');return;}
   showToast('Listing updated');
   closeGenericModal('seller-edit-listing-modal');
   loadSellerMyListings();
   loadRealListings();
+}
+async function requestListingDeletion(id){
+  var reason=prompt('Why do you want this listing removed? (this request goes to the PartSouq admin team for approval)');
+  if(reason===null) return;
+  reason=(reason||'').trim();
+  if(!reason){ showToast('Please provide a reason for the deletion request'); return; }
+  var res=await sb.from('listings').update({deletion_requested:true, deletion_reason:reason}).eq('id',id).select();
+  if(res.error){ showToast('Could not send request: '+res.error.message); return; }
+  if(!res.data||res.data.length===0){ showToast('Could not send request — you can only manage your own listings.'); return; }
+  showToast('Deletion request sent to admin for review');
+  loadSellerMyListings();
 }
 async function loadSellerOrders(){
   var el=$el('seller-orders-list'); if(!el || !currentUser || !currentUser.id) return;
@@ -7329,6 +7453,10 @@ function renderListingsFromCache(){
     }
     h+='<button class="btn btn-out btn-sm" onclick="editListing(\''+i.id+'\')" title="Edit" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span></button>';
     h+='<button class="btn btn-re btn-sm" onclick="deleteListingReal(\''+i.id+'\')" title="Delete" style="margin-left:6px;"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span></button>';
+    if(i.deletion_requested){
+      h+='<span title="'+esc(i.deletion_reason||'')+'" style="font-size:10.5px;font-weight:700;color:#b91c1c;background:#fee2e2;border-radius:5px;padding:3px 7px;margin-left:6px;white-space:nowrap;">Del. requested</span>';
+      h+='<button class="btn btn-out btn-sm" onclick="declineListingDeletion(\''+i.id+'\')" title="Decline deletion request" style="margin-left:6px;">Decline</button>';
+    }
     h+='</div></td></tr>';
   });
   h+='</tbody></table></div>';
@@ -7398,6 +7526,13 @@ async function deleteListingReal(id){
   showToast('Listing deleted');
   renderListings();
   loadRealListings();
+}
+async function declineListingDeletion(id){
+  var res=await sb.from('listings').update({deletion_requested:false, deletion_reason:null}).eq('id',id).select();
+  if(res.error){showToast('Could not update: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('Update was blocked — sign in through the Admin login for full permissions.');return;}
+  showToast('Deletion request declined — listing kept');
+  renderListings();
 }
 
 function setFilter(el,status){
