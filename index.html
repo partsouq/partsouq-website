@@ -302,6 +302,32 @@ button{cursor:pointer;border:none;}
 .prow .pcard{flex:0 0 auto;width:212px;scroll-snap-align:start;}
 @media(max-width:560px){.prow .pcard{width:158px;}}
 .prow-wrap .cat-arrow{top:130px;}
+/* ── Mobile polish pass ── */
+@media(max-width:600px){
+  html,body{overflow-x:hidden;}
+  .w{padding-left:14px !important;padding-right:14px !important;}
+  .sec{padding:22px 0 !important;}
+  .hero-inner{padding:28px 0 !important;gap:20px !important;}
+  .hero h1{font-size:28px !important;line-height:1.08 !important;}
+  .hero-sub{font-size:13.5px !important;margin-bottom:18px !important;line-height:1.55 !important;}
+  .hero-btns{margin-bottom:20px !important;gap:9px !important;}
+  .hero-pill{font-size:11px !important;margin-bottom:12px !important;}
+  .sec-h{margin-bottom:12px !important;}
+  .sec-h h2{font-size:17px !important;}
+  .sec-h h2 .tg{display:none !important;}
+  .sec-h a{font-size:12px !important;}
+  .home-row{margin-bottom:20px !important;}
+  .prow .pcard{width:150px;}
+  .prow-wrap .cat-arrow{display:none !important;}
+  .ct{width:100px !important;}
+  .ct-cave{width:92px !important;height:92px !important;border-radius:22px !important;}
+  .ct-name{font-size:12px !important;}
+  .cat-arrow{display:none !important;}
+  .pctit{font-size:12.5px !important;min-height:34px !important;}
+  .pcprice{font-size:16px !important;}
+  .pcb{padding:10px 10px 12px !important;}
+  .pc-add{width:32px;height:32px;font-size:19px;}
+}
 
 /* Filters */
 .fr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
@@ -2201,7 +2227,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v84</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v85</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2641,7 +2667,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v84-homerows';
+window.PARTSOUQ_BUILD='v85-orders-mobile';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -4383,6 +4409,7 @@ async function loadSellerOrders(){
     }
     if(o.status==='pending_admin') h+='<div style="font-size:12px;color:#92400e;background:#fef3c7;border-radius:6px;padding:7px 10px;">&#128336; Awaiting PartSouq admin approval before you can dispatch.</div>';
     if(o.status==='confirmed') h+='<button onclick="updateOrderStatusReal(\''+o.id+'\',\'out_for_delivery\')" style="margin-top:8px;padding:8px 14px;border-radius:7px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:700;border:none;cursor:pointer;">Mark Out for Delivery</button>';
+    if(o.status==='pending_admin'||o.status==='confirmed') h+='<button onclick="sellerCancelOrder(\''+o.id+'\')" style="margin-top:8px;margin-left:8px;padding:8px 14px;border-radius:7px;background:#fee2e2;color:#b91c1c;font-size:12.5px;font-weight:700;border:none;cursor:pointer;">Cancel Order</button>';
     if(o.status==='out_for_delivery') h+='<button onclick="updateOrderStatusReal(\''+o.id+'\',\'delivered\')" style="margin-top:8px;padding:8px 14px;border-radius:7px;background:#00c47a;color:#0a0f1e;font-size:12.5px;font-weight:700;border:none;cursor:pointer;">Mark as Delivered</button>';
     h+='</div>';
   });
@@ -4393,6 +4420,15 @@ async function updateOrderStatusReal(id,newStatus){
   var res=await sb.from('orders').update({status:newStatus}).eq('id',id);
   if(res.error){showToast('Could not update: '+res.error.message);return;}
   showToast('Order updated');
+  loadSellerOrders();
+}
+async function sellerCancelOrder(id){
+  if(!confirm('Cancel this order? The buyer will be notified it was cancelled.')) return;
+  var reason=prompt('Reason for cancelling (e.g. part no longer available):')||'';
+  var res=await sb.from('orders').update({status:'cancelled', cancelled_by:(currentUser&&currentUser.role)||'seller', cancel_reason:reason.trim()||null}).eq('id',id).select();
+  if(res.error){showToast('Could not cancel: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('Could not cancel this order.');return;}
+  showToast('Order cancelled');
   loadSellerOrders();
 }
 
@@ -4634,7 +4670,7 @@ async function loadRealListings(){
       compat: compat, price: _sale, was: _orig, disc: _disc, deliveryFee: _delFee, deliveryIncluded: _delInc, rating: 0, rev: 0,
       ver: true, cond: row.condition || 'See listing', em: (row.profiles && row.profiles.emirate) || '',
       del: row.delivery_time || 'Contact seller', oem: row.oem, warranty: (row.warranty_value ? row.warranty_value+' '+row.warranty_unit : 'No warranty'),
-      weight: '—', isNew: true, ret: 'Contact PartSouq support for return eligibility.',
+      weight: '—', isNew: false, ret: 'Contact PartSouq support for return eligibility.',
       chassis: row.chassis_no||'—', engine: row.engine_no||'—', chassisNo: row.chassis_no||'', engineNo: row.engine_no||'', spec: row.car_spec||'—'
     });
   });
@@ -4986,6 +5022,8 @@ async function ckConfirm(){
     buyer_phone: phone,
     delivery_address: addr,
     emirate: emirate,
+    delivery_time: (ckItem.del||null),
+    delivery_fee: (ckItem.deliveryIncluded?0:(ckItem.deliveryFee!=null?Number(ckItem.deliveryFee):null)),
     mulkiya_url: mulkiyaUrl,
     part_photo_url: partPhotoUrl,
     status: 'pending_admin'
@@ -6538,10 +6576,24 @@ async function openMyOrders(){
       +statusBadgeHtml
       +'</div>'
       +progressHtml
-      +(!isCancelled?'<button onclick="openDisputeForm(\''+o.id+'\')" style="margin-top:10px;background:none;border:1px solid #e2e8f0;color:#888;padding:6px 12px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;">Report an Issue</button>':'')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
+      +((o.status==='pending_admin'||o.status==='confirmed')?'<button onclick="buyerCancelOrder(\''+o.id+'\')" style="background:#fee2e2;border:none;color:#b91c1c;padding:6px 12px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;">Cancel Order</button>':'')
+      +(o.status==='out_for_delivery'?'<span style="font-size:11px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:7px;">Out for delivery — you can decline at the door (cash on delivery, pay nothing if you don\'t accept).</span>':'')
+      +(!isCancelled?'<button onclick="openDisputeForm(\''+o.id+'\')" style="background:none;border:1px solid #e2e8f0;color:#888;padding:6px 12px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;">Report an Issue</button>':'')
+      +'</div>'
       +'</div>';
   }).join('');
   b.innerHTML = h;
+}
+async function buyerCancelOrder(id){
+  if(!currentUser||!currentUser.id){showToast('Please sign in again');return;}
+  if(!confirm('Cancel this order? You can re-order any time.')) return;
+  var reason=prompt('Optional: tell us why you\'re cancelling (helps us improve):')||'';
+  var res=await sb.from('orders').update({status:'cancelled', cancelled_by:'buyer', cancel_reason:reason.trim()||null}).eq('id',id).eq('buyer_id',currentUser.id).select();
+  if(res.error){showToast('Could not cancel: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('This order can no longer be cancelled online — please contact PartSouq support.');return;}
+  showToast('Order cancelled');
+  openMyOrders();
 }
 window._disputeOrderId=null;
 function openDisputeForm(orderId){
@@ -8163,20 +8215,55 @@ function openOrderDetail(id){
   h+=rr('Delivery method', method);
   h+=rr('Delivery address', addr);
   h+=rr('Emirate', o.emirate);
+  h+=rr('Estimated delivery', o.delivery_time);
+  h+=rr('Delivery fee', o.delivery_fee!=null?('AED '+o.delivery_fee):'—');
   h+=rr('Placed', placed);
+  if(o.status==='cancelled'){
+    h+=rr('Cancelled by', o.cancelled_by?(o.cancelled_by.charAt(0).toUpperCase()+o.cancelled_by.slice(1)):'—');
+    if(o.cancel_reason) h+=rr('Cancel reason', o.cancel_reason);
+  }
   function odImg(label,url){ if(!url) return '<div style="text-align:center;"><div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px;">'+label+'</div><div style="width:120px;height:88px;border-radius:8px;border:1.5px dashed #fca5a5;background:#fef2f2;color:#b91c1c;font-size:11px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;">Not provided</div></div>'; return '<div style="text-align:center;"><div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px;">'+label+'</div><img src="'+esc(url)+'" onclick="openImgZoom(this.src)" title="Click to zoom" style="width:120px;height:88px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;"></div>'; }
   h+='<div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Buyer Photos — verify the part matches before approving</div><div style="display:flex;gap:12px;flex-wrap:wrap;">'+odImg('Mulkiya (registration)',o.mulkiya_url)+odImg('Old part photo',o.part_photo_url)+'</div></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;">';
   if(o.status==='pending_admin'){
-    h+='<div style="display:flex;gap:10px;margin-top:18px;">';
-    h+='<button class="btn btn-g" style="flex:1;" onclick="closeOrderDetail();approveOrderReal(\''+o.id+'\')">&#10003; Approve &amp; Forward to Seller</button>';
-    h+='<button class="btn btn-re" onclick="closeOrderDetail();cancelOrderReal(\''+o.id+'\')">Cancel</button>';
-    h+='</div>';
+    h+='<button class="btn btn-g" style="flex:1;min-width:170px;" onclick="closeOrderDetail();approveOrderReal(\''+o.id+'\')">&#10003; Approve &amp; Forward to Seller</button>';
   }
+  h+='<button class="btn btn-out" onclick="editOrderDetail(\''+o.id+'\')">Edit</button>';
+  if(o.status!=='cancelled' && o.status!=='delivered'){
+    h+='<button class="btn btn-re" onclick="closeOrderDetail();cancelOrderReal(\''+o.id+'\')">Cancel Order</button>';
+  }
+  h+='<button class="btn" style="background:#f0f0f0;color:#555;" onclick="closeOrderDetail()">Close</button>';
+  h+='</div>';
   h+='</div>';
   ov.innerHTML=h;
   document.body.appendChild(ov);
 }
 function closeOrderDetail(){var o=document.getElementById('od-overlay');if(o)o.parentNode.removeChild(o);}
+function editOrderDetail(id){
+  var o=(window._adminOrders||[]).find(function(x){return x.id===id;});
+  if(!o)return;
+  var card=document.querySelector('#od-overlay > div'); if(!card) return;
+  var addr=(o.delivery_address||'').replace(/\s*\[(SELF-COLLECT|HOME DELIVERY)\]/i,'').trim();
+  var inp=function(iid,val){return '<input id="'+iid+'" value="'+esc(val||'')+'" style="width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13.5px;box-sizing:border-box;margin-bottom:10px;">';};
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="font-size:17px;font-weight:800;color:#0f172a;">Edit Order</h3><button onclick="closeOrderDetail()" style="background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;">&times;</button></div>';
+  h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:3px;">Buyer name</label>'+inp('od-e-name',o.buyer_name);
+  h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:3px;">Buyer phone</label>'+inp('od-e-phone',o.buyer_phone);
+  h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:3px;">Delivery address</label>'+inp('od-e-addr',addr);
+  h+='<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:3px;">Emirate</label>'+inp('od-e-em',o.emirate);
+  h+='<div style="display:flex;gap:10px;margin-top:8px;"><button class="btn btn-g" style="flex:1;" onclick="saveOrderEdit(\''+id+'\')">Save Changes</button><button class="btn btn-out" onclick="openOrderDetail(\''+id+'\')">Back</button></div>';
+  card.innerHTML=h;
+}
+async function saveOrderEdit(id){
+  var g=function(x){return ($el(x)||{}).value||'';};
+  var res=await sb.from('orders').update({buyer_name:g('od-e-name'), buyer_phone:g('od-e-phone'), delivery_address:g('od-e-addr'), emirate:g('od-e-em')}).eq('id',id).select();
+  if(res.error){showToast('Could not save: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('Update was blocked — please sign in through the Admin login.');return;}
+  var o=(window._adminOrders||[]).find(function(x){return x.id===id;});
+  if(o && res.data[0]) Object.assign(o,res.data[0]);
+  showToast('Order updated');
+  openOrderDetail(id);
+  renderOrders();
+}
 async function approveOrderReal(id){
   var res=await sb.from('orders').update({status:'confirmed'}).eq('id',id);
   if(res.error){showToast('Could not approve: '+res.error.message);return;}
@@ -8186,8 +8273,10 @@ async function approveOrderReal(id){
 }
 async function cancelOrderReal(id){
   if(!confirm('Cancel this order?')) return;
-  var res=await sb.from('orders').update({status:'cancelled'}).eq('id',id);
+  var reason=prompt('Reason for cancelling this order (optional):')||'';
+  var res=await sb.from('orders').update({status:'cancelled', cancelled_by:'admin', cancel_reason:reason.trim()||null}).eq('id',id).select();
   if(res.error){showToast('Could not cancel: '+res.error.message);return;}
+  if(!res.data||res.data.length===0){showToast('Cancel was blocked — sign in through the Admin login.');return;}
   showToast('Order cancelled');
   renderOrders();
   refreshAdminBadges();
