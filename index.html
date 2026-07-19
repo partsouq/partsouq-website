@@ -1513,6 +1513,113 @@ body{
   background:linear-gradient(180deg,rgba(255,255,255,.28),transparent);
   pointer-events:none;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE FIT (v89) — nothing goes off-screen, everything fits
+   Root-cause fixes, not just clipping.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Hard backstop: the page itself can never scroll sideways */
+html{overflow-x:hidden;max-width:100%;}
+body{overflow-x:hidden;max-width:100vw;}
+
+/* THE classic overflow bug: flex/grid children refuse to shrink below
+   their content, pushing siblings off-screen (this is why the newsletter
+   "Subscribe" button was chopped to "Sub"). Let them shrink. */
+.nl-f input,.srch-inp,.msrch input{min-width:0;}
+.nl-f{flex-wrap:nowrap;}
+.nl-f button{flex-shrink:0;white-space:nowrap;}
+
+@media(max-width:600px){
+  /* Newsletter stacks cleanly, full-width, button always visible */
+  .nl{padding:22px 16px !important;gap:14px !important;
+      flex-direction:column !important;align-items:stretch !important;}
+  .nl-cp h2{font-size:18px !important;}
+  .nl-f{max-width:100% !important;width:100% !important;}
+  /* Clear the fixed "Shop Parts / Book Garage" bar so it never
+     hides the last form field or footer content */
+  body{padding-bottom:82px !important;}
+}
+
+/* Admin panel + Partner dashboard: keep every page inside the screen */
+@media(max-width:900px){
+  /* flex/grid children shrink instead of forcing horizontal scroll */
+  #admin-panel *,#partner-dashboard *{min-width:0 !important;}
+  /* long emails, OEM codes, URLs, WhatsApp numbers wrap instead of
+     stretching a row past the screen edge */
+  #admin-panel,#partner-dashboard,.cform,.footer{
+    overflow-wrap:anywhere;word-break:break-word;}
+  /* the scrolling regions clip horizontally, never the whole viewport */
+  #admin-panel .content,#admin-panel .main,#pd-body,.pd-shell{
+    overflow-x:hidden !important;max-width:100% !important;}
+  #admin-panel img,#partner-dashboard img{max-width:100% !important;height:auto !important;}
+  /* stat/summary rows wrap to next line rather than overflowing */
+  #admin-panel [style*="display:flex"],#partner-dashboard [style*="display:flex"]{
+    flex-wrap:wrap !important;}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CINEMATIC HERO (v90) — spotlight · glow · gradient headline
+   The "Flamingo / Frax" premium look: a dark stage lit by a single
+   beam, a glowing reflective floor, and gradient display type.
+   ══════════════════════════════════════════════════════════════ */
+.hero{
+  background:radial-gradient(125% 95% at 50% -12%,#122a45 0%,#0a1524 42%,#05080f 100%) !important;
+  min-height:580px;
+}
+/* the spotlight beam pouring down from the top-centre */
+.hero::before{
+  content:"";position:absolute;top:-12%;left:50%;transform:translateX(-50%);
+  width:min(820px,95%);height:78%;
+  background:radial-gradient(ellipse 48% 62% at 50% 0%,
+    rgba(0,196,122,.30) 0%,rgba(0,196,122,.11) 34%,transparent 68%);
+  filter:blur(22px);pointer-events:none;z-index:1;
+  animation:heroBeam 6.5s ease-in-out infinite;
+}
+/* glowing reflective floor at the base of the stage */
+.hero::after{
+  content:"";position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(0,196,122,.75),transparent);
+  box-shadow:0 0 46px 7px rgba(0,196,122,.4);
+  z-index:1;pointer-events:none;
+}
+@keyframes heroBeam{0%,100%{opacity:.82;}50%{opacity:1;}}
+
+.hero-mesh{
+  background:
+    radial-gradient(ellipse 52% 70% at 14% 42%,rgba(0,196,122,.15) 0%,transparent 60%),
+    radial-gradient(ellipse 46% 60% at 90% 24%,rgba(59,130,246,.11) 0%,transparent 55%) !important;
+  z-index:1;
+}
+.hero-inner{z-index:3 !important;}
+
+/* display headline: white→mint gradient with a soft green glow */
+.hero h1{
+  background:linear-gradient(180deg,#ffffff 0%,#d6f4e7 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  text-shadow:0 2px 44px rgba(0,196,122,.18);
+  letter-spacing:-.03em;
+}
+.hero h1 em{
+  -webkit-text-fill-color:transparent;
+  background:linear-gradient(118deg,#00e492 0%,#00a064 100%);
+  -webkit-background-clip:text;background-clip:text;
+}
+
+/* car-search widget → deep frosted glass that catches the light */
+.hero .cw{
+  background:rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter:blur(20px) saturate(1.35);
+  backdrop-filter:blur(20px) saturate(1.35);
+  border:1px solid rgba(255,255,255,.16) !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+/* primary hero button: glossy gradient + glow (matches the reference CTAs) */
+.hero .bha{
+  background:linear-gradient(135deg,#00e492,#00a064) !important;
+  box-shadow:0 8px 30px rgba(0,196,122,.45) !important;
+}
+.hero .bha:hover{transform:translateY(-2px);box-shadow:0 12px 38px rgba(0,196,122,.6) !important;}
 </style>
 </head>
 <body>
@@ -2403,7 +2510,7 @@ body{
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v88</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v90</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
