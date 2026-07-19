@@ -546,7 +546,11 @@ button{cursor:pointer;border:none;}
 .fctab{background:var(--p1);color:#fff;}
 
 /* ═══════ TOAST ═══════ */
-.toast{position:fixed;bottom:80px;right:20px;z-index:999;background:var(--p1);color:#fff;border:1px solid rgba(0,196,122,.3);padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:500;box-shadow:0 8px 28px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;transform:translateX(140%);transition:transform .3s;}
+.toast{position:fixed;bottom:80px;right:20px;z-index:100001;background:#0f172a;color:#fff;border:1px solid rgba(0,196,122,.55);border-left:4px solid #00c47a;padding:13px 14px 13px 16px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.45);display:flex;align-items:center;gap:10px;max-width:360px;line-height:1.4;transform:translateX(140%);transition:transform .3s;}
+.toast #tmsg{flex:1;}
+.toast .toast-x{cursor:pointer;color:rgba(255,255,255,.6);font-size:18px;line-height:1;flex-shrink:0;padding:0 2px;}
+.toast .toast-x:hover{color:#fff;}
+@media(max-width:600px){.toast{left:14px;right:14px;bottom:76px;max-width:none;}}
 .toast.show{transform:translateX(0);}
 .toast i{color:var(--g);font-size:16px;}
 
@@ -1336,6 +1340,178 @@ button .ico{vertical-align:middle;margin-right:4px;}
 @media(max-width:480px){
   .auth-box,.mdl,.garage-box{max-width:100% !important;}
   .ck-modal,.garage-modal{padding:10px !important;}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM DESIGN LAYER — glassmorphism · gradients · depth (v87)
+   Additive only: touches colour, blur, shadow, gradient — never
+   layout, position or sizing. Safe to sit on top of everything.
+   ══════════════════════════════════════════════════════════════ */
+
+/* — tokens — */
+:root{
+  --grad-g:linear-gradient(135deg,#00d488 0%,#00a064 100%);
+  --grad-g-hover:linear-gradient(135deg,#00c47a 0%,#008d56 100%);
+  --grad-navy:linear-gradient(135deg,#0d1428 0%,#0a0f1e 55%,#111a33 100%);
+  --glass-bg:rgba(255,255,255,.72);
+  --glass-brd:rgba(255,255,255,.55);
+  --shadow-sm:0 2px 8px rgba(15,23,42,.06);
+  --shadow-md:0 8px 24px rgba(15,23,42,.10);
+  --shadow-lg:0 20px 60px rgba(15,23,42,.18);
+}
+
+/* — GLASS OVERLAYS: blur whatever sits behind any full-screen modal — */
+#mdl-overlay,#mdl-bg,.ck-modal,.pm-modal,.auth-modal,.modal-bg,
+.garage-modal,#admin-panel .modal-bg{
+  -webkit-backdrop-filter:blur(9px) saturate(1.15);
+  backdrop-filter:blur(9px) saturate(1.15);
+}
+
+/* — HEADER: translucent navy glass that lifts as content scrolls under it — */
+.hdr{
+  background:linear-gradient(135deg,rgba(13,20,40,.94),rgba(10,15,30,.94));
+  -webkit-backdrop-filter:blur(14px) saturate(1.2);
+  backdrop-filter:blur(14px) saturate(1.2);
+  box-shadow:0 1px 0 rgba(255,255,255,.06),0 8px 30px rgba(0,0,0,.35);
+}
+.nbr{
+  background:rgba(17,24,39,.85);
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+}
+
+/* — PRIMARY BUTTONS: signal-green gradient with a soft glow lift — */
+.btn-cart,.btn-mdl,.btn-cf,.btn-book,.btn-cp-g,.btn-rf-next,
+.srch-btn,.btn-cp-r{
+  background:var(--grad-g) !important;
+  color:#04160f !important;
+  box-shadow:0 4px 14px rgba(0,164,100,.28);
+  transition:background .18s,box-shadow .18s,transform .12s !important;
+}
+.btn-cart:hover,.btn-mdl:hover,.btn-cf:hover,.btn-book:hover,
+.btn-cp-g:hover,.btn-rf-next:hover,.srch-btn:hover,.btn-cp-r:hover{
+  background:var(--grad-g-hover) !important;
+  color:#fff !important;
+  box-shadow:0 8px 22px rgba(0,164,100,.4);
+  transform:translateY(-1px);
+}
+.btn-cart:active,.btn-mdl:active,.btn-cf:active,.btn-book:active,
+.btn-cp-g:active,.btn-rf-next:active,.srch-btn:active{transform:translateY(0);}
+
+/* — SEARCH bar: subtle glass frame — */
+.srch{box-shadow:0 0 0 1.5px rgba(0,196,122,.28),0 6px 22px rgba(0,0,0,.22);}
+.srch:focus-within{box-shadow:0 0 0 2px var(--g),0 8px 26px rgba(0,196,122,.3);}
+
+/* — SECTION HEADINGS: gradient bar accent + gradient text on the title — */
+.sec-h h2{position:relative;padding-left:14px;}
+.sec-h h2::before{
+  content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:5px;height:20px;border-radius:3px;background:var(--grad-g);
+  box-shadow:0 2px 8px rgba(0,164,100,.35);
+}
+.sec-h h2 .tg{
+  background:var(--grad-g);color:#04160f;
+  box-shadow:0 2px 8px rgba(0,164,100,.25);
+}
+
+/* — PRODUCT CARDS: cleaner border, layered shadow, smoother lift — */
+.pcard{
+  border:1px solid #eef1f5 !important;
+  border-radius:16px !important;
+  box-shadow:var(--shadow-sm) !important;
+  transition:box-shadow .24s ease,transform .24s ease,border-color .24s ease !important;
+}
+.pcard:hover{
+  box-shadow:var(--shadow-md),0 0 0 1px rgba(0,196,122,.18) !important;
+  transform:translateY(-4px) !important;
+  border-color:#cdeede !important;
+}
+
+/* — MODAL CARDS: soft top sheen + deeper float — */
+.mdl{
+  box-shadow:var(--shadow-lg) !important;
+  border:1px solid rgba(255,255,255,.6) !important;
+}
+#mdl-overlay > div{box-shadow:var(--shadow-lg) !important;}
+.mdl-close{
+  background:rgba(255,255,255,.75) !important;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+
+/* — SPEC / INFO panels inside modal: faint gradient tint instead of flat grey — */
+.mdl-specs{
+  background:linear-gradient(135deg,#f6fbf9,#eef4ff) !important;
+  border:1px solid #eef1f5 !important;
+}
+
+/* — GLASS CARD helper (dark hero regions) already exists (.cw) — deepen it — */
+.cw{
+  background:rgba(255,255,255,.07);
+  -webkit-backdrop-filter:blur(14px) saturate(1.2);
+  backdrop-filter:blur(14px) saturate(1.2);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 8px 32px rgba(0,0,0,.25);
+}
+
+/* — TOAST: keep it a frosted premium chip — */
+.toast{
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  box-shadow:var(--shadow-lg) !important;
+}
+
+/* Respect users who prefer less motion / no blur cost on low-end devices */
+@media(max-width:600px){
+  .hdr,.nbr,#mdl-overlay,#mdl-bg,.ck-modal,.pm-modal,.auth-modal,
+  .modal-bg,.garage-modal{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+}
+
+/* ─── AMPLIFY (v88): make the premium look unmistakable ─── */
+
+/* Page background: soft tinted wash + faint colour mesh instead of flat grey */
+body{
+  background:
+    radial-gradient(1200px 600px at 100% -5%,rgba(0,196,122,.07) 0%,transparent 55%),
+    radial-gradient(1000px 500px at -5% 10%,rgba(59,130,246,.06) 0%,transparent 55%),
+    linear-gradient(180deg,#eef3f9 0%,#f6f9fc 30%,#f8fafc 100%) !important;
+  background-attachment:fixed !important;
+}
+
+/* Section titles on light backgrounds: green→ink gradient text (dark sections stay white) */
+.sec-h h2{
+  background:linear-gradient(120deg,#06342a 0%,#0f172a 45%,#00915a 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.sec-h h2 .tg{-webkit-text-fill-color:#04160f;background:var(--grad-g);}
+.sec-dk .sec-h h2{background:none;-webkit-text-fill-color:#fff;}
+.sec-dk .sec-h h2 .tg{-webkit-text-fill-color:var(--g);background:rgba(0,196,122,.15);}
+
+/* Product cards: glossy sheen + a clearly visible green glow on hover */
+.pcard{background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%) !important;}
+.pcard:hover{
+  box-shadow:0 16px 40px rgba(15,23,42,.16),0 0 0 2px rgba(0,196,122,.35) !important;
+  transform:translateY(-6px) !important;
+}
+
+/* "Add" pill on cards → gradient */
+.pc-add:hover{background:var(--grad-g) !important;border-color:transparent !important;color:#fff !important;}
+
+/* Content sections float on subtle glass panels for depth */
+.home-row .prow-wrap{
+  background:rgba(255,255,255,.55);
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  border-radius:20px;
+}
+
+/* Buttons: add a top highlight so the gradient reads as glossy, not flat */
+.btn-mdl,.btn-cf,.btn-cart,.btn-cp-r,.bha{
+  position:relative;overflow:hidden;
+}
+.btn-mdl::after,.btn-cf::after,.btn-cart::after,.bha::after{
+  content:"";position:absolute;top:0;left:0;right:0;height:45%;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),transparent);
+  pointer-events:none;
 }
 </style>
 </head>
@@ -2227,7 +2403,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
       <a href="mailto:support@partsouq.co" style="font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#00c47a'" onmouseout="this.style.color='rgba(255,255,255,.4)'"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;margin-right:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>support@partsouq.co</a>
     </div>
     <div class="fbot">
-      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v85</span></p>
+      <p>&copy; 2026 PartSouq &mdash; <a href="https://partsouq.co" style="color:rgba(255,255,255,.4);">partsouq.co</a> &mdash; All rights reserved. Dubai, UAE. <span style="color:rgba(255,255,255,.25);font-size:11px;">build v88</span></p>
       <div class="fpays"><span>VISA</span><span>MC</span><span>Cash</span></div>
       <p>🇦🇪 Dubai · Sharjah · Abu Dhabi · Ajman · RAK · Fujairah · UAQ</p>
     </div>
@@ -2236,7 +2412,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 
 <div id="admin-fab" onclick="openAdmin()" style="display:none;position:fixed;bottom:80px;right:20px;z-index:400;background:#e53e3e;color:#fff;width:48px;height:48px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:18px;cursor:pointer;box-shadow:0 4px 16px rgba(231,76,60,.4);border:none;" title="Admin Panel"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></div>
 <div class="fcta"><a href="javascript:void(0)" onclick="s2('shop')" class="fctas"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span> Shop Parts</a><a href="javascript:void(0)" onclick="s2('garage')" class="fctab"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span> Book Garage</a></div>
-<div class="toast" id="toast"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><span id="tmsg"></span></div>
+<div class="toast" id="toast"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;color:#00c47a;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><span id="tmsg"></span><span class="toast-x" onclick="document.getElementById('toast').classList.remove('show')">&times;</span></div>
 <div id="mdl-bg" onclick="closeMdl(event)"><div class="mdl" id="mdl"><button class="mdl-close" onclick="closeMdlBtn()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button><div class="mdl-in" id="mdl-in"></div></div></div>
 
 <!-- CHECKOUT MODAL -->
@@ -2667,7 +2843,7 @@ button .ico{vertical-align:middle;margin-right:4px;}
 const SUPABASE_URL = 'https://zcgaauerkgjupsfyfxaa.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_x4Lzce_Xv_RE7pSHIJ4ULw_Uijxf040';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.PARTSOUQ_BUILD='v85-orders-mobile';
+window.PARTSOUQ_BUILD='v86-billing-fixes';
 try{ console.log('%cPartSouq build '+window.PARTSOUQ_BUILD+' loaded','color:#00c47a;font-weight:bold;font-size:13px;'); }catch(e){}
 
 
@@ -5138,7 +5314,7 @@ var CAR_DB={"Audi":["Q8 F1","Q7 4M","Q5 FY","Q3 F3","A8 D5","A7 C8","A6 C8","A4 
 function adminFillModel(){var b=document.getElementById('lm-brand').value,list=document.getElementById('lm-model-list');if(!list)return;list.innerHTML='';if(b&&CAR_DB[b])CAR_DB[b].forEach(function(m){var o=document.createElement('option');o.value=m;list.appendChild(o);});}
 
 // ── TOAST ──
-function showToast(msg){var t=document.getElementById('toast');var tm=document.getElementById('tmsg');if(t&&tm){tm.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},2800);}}
+function showToast(msg){var t=document.getElementById('toast');var tm=document.getElementById('tmsg');if(t&&tm){tm.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},20000);}}
 
 // ── MODALS ──
 function openGenericModal(id){var el=document.getElementById(id);if(el)el.classList.add('open');}
@@ -5741,12 +5917,14 @@ async function getActiveServiceCount(garageId){
 }
 function getBillingInfo(u){
   if(!u) return null;
+  var plan = u.plan || 'free';
+  var isPaidPlan = (plan==='basic' || plan==='mid' || plan==='max');
   var cycleStart = u.cycleStart || u.cycle_start;
-  if(!cycleStart){
-    // Partner exists but has never started a billing cycle (e.g. free plan / not enrolled yet).
-    // Return a valid record so they still appear in Partner Billing instead of vanishing.
+  // Only PAID plans have a billing cycle. A free plan (or a paid plan with no
+  // cycle started) is "Free / Not Enrolled" — never shown as Paid with days left.
+  if(!isPaidPlan || !cycleStart){
     var blk = !!(u.manualBlocked || u.manual_blocked);
-    return {partsouqId:u.partsouqId||u.partsouq_id, plan:u.role==='seller'?'Monthly (30 days)':'Weekly (7 days)',
+    return {partsouqId:u.partsouqId||u.partsouq_id, plan:'Free',
       cycleDays:u.role==='seller'?30:7, daysRemaining:null, status:blk?'blocked':'nocycle', blocked:blk, dueDate:'—', noCycle:true};
   }
   var startMs = typeof cycleStart==='string' ? new Date(cycleStart).getTime() : cycleStart;
@@ -6738,6 +6916,7 @@ async function renderCategoryImages(){
   var existing={};
   (res.data||[]).forEach(function(r){ existing[r.category_key]=r.image_url; });
   var h='<div class="sec-hdr"><h2>Category Images</h2></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 13px;font-size:12.5px;color:#1e3a8a;margin-bottom:12px;"><strong>Recommended image size:</strong> 400 × 400 px (square, 1:1). JPG or PNG, under 500&nbsp;KB. A plain white or transparent background looks cleanest.</div>';
   h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">Change the photo shown for each category on the homepage\'s "Shop by Category" section. Saved for real \u2014 updates everywhere immediately.</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">';
   CATEGORY_KEYS.forEach(function(key){
@@ -6761,9 +6940,9 @@ async function catImagePhotoSelected(input,key){
   try{
     var compressed=await compressImage(file, 600, 0.85);
     var path='categories/'+key.toLowerCase()+'-'+Date.now()+'.jpg';
-    var up=await sb.storage.from('hero-banners').upload(path, compressed, {contentType:'image/jpeg'});
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
     if(up.error) throw new Error(up.error.message);
-    var pub=sb.storage.from('hero-banners').getPublicUrl(path);
+    var pub=sb.storage.from('listing-photos').getPublicUrl(path);
     var url=pub.data.publicUrl;
     var res=await sb.from('category_images').upsert({category_key:key, image_url:url}, {onConflict:'category_key'});
     if(res.error) throw new Error(res.error.message);
@@ -6772,7 +6951,7 @@ async function catImagePhotoSelected(input,key){
     renderCategoryImages();
     loadCategoryImages();
   }catch(err){
-    showToast('Upload failed: '+err.message+' \u2014 make sure the "hero-banners" storage bucket exists in Supabase.');
+    showToast('Upload failed: '+err.message+' \u2014 please try again.');
   }
 }
 
@@ -6782,6 +6961,7 @@ async function renderHeroBanners(){
   var banners = (res.data)||[];
   var h='<div class="sec-hdr"><h2>Hero Banners ('+banners.length+')</h2><button class="btn btn-g" onclick="openHeroBannerForm()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Banner</button></div>';
   h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">These banners auto-slide on the homepage, one after another, exactly like a real e-commerce hero carousel. Saved for real \u2014 they\'ll still be there after you close this tab or redeploy the site.</div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 13px;font-size:12.5px;color:#1e3a8a;margin-bottom:14px;"><strong>Recommended banner size:</strong> 1600 × 500 px (landscape, ~16:5). JPG or PNG, under 800&nbsp;KB. Keep important text/logos in the centre so nothing is cut off on mobile.</div>';
   h+='<div id="hb-form-wrap"></div>';
   if(banners.length===0){
     h+='<div class="card" style="padding:40px;text-align:center;color:#888;font-size:13.5px;">No banners yet \u2014 the homepage is showing a default fallback slide. Click "Add Banner" to create your first real one.</div>';
@@ -6813,13 +6993,13 @@ async function hbPhotoSelected(input){
   try{
     var compressed=await compressImage(file);
     var path='hero/'+Date.now()+'.jpg';
-    var up=await sb.storage.from('hero-banners').upload(path, compressed, {contentType:'image/jpeg'});
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
     if(up.error) throw new Error(up.error.message);
-    var pub=sb.storage.from('hero-banners').getPublicUrl(path);
+    var pub=sb.storage.from('listing-photos').getPublicUrl(path);
     $safe('hb-image',function(e){e.value=pub.data.publicUrl;});
     if(statusEl){statusEl.innerHTML='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo uploaded';}
   }catch(err){
-    showToast('Upload failed: '+err.message+' \u2014 make sure the "hero-banners" storage bucket exists in Supabase.');
+    showToast('Upload failed: '+err.message+' \u2014 please try again.');
     if(statusEl){statusEl.style.display='none';}
   }
 }
@@ -6909,6 +7089,7 @@ async function renderPartnerBanners(){
   window._adminPartnerBanners=banners;
   var h='<div class="sec-hdr"><h2>Partner Banners ('+banners.length+')</h2><button class="btn btn-g" onclick="openPartnerBannerForm()"><span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span> Add Banner</button></div>';
   h+='<div style="background:#e6faf3;border:1px solid #c8eedd;border-radius:9px;padding:11px 13px;font-size:13px;color:#065f46;margin-bottom:18px;line-height:1.6;">Post promotional banners (subscription discounts, referral offers, seasonal deals) for your partners. Each banner can target <strong>Sellers only</strong>, <strong>Garages only</strong>, or <strong>Both</strong> — it shows automatically at the top of the matching Partner Dashboard(s). Saved for real.</div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 13px;font-size:12.5px;color:#1e3a8a;margin-bottom:14px;"><strong>Recommended banner size:</strong> 1200 × 300 px (landscape, 4:1). JPG or PNG, under 600&nbsp;KB.</div>';
   h+='<div id="pb-form-wrap"></div>';
   if(banners.length===0){
     h+='<div class="card" style="padding:40px;text-align:center;color:#888;font-size:13.5px;">No banners yet. Click "Add Banner" to create your first one.</div>';
@@ -6939,14 +7120,14 @@ async function pbPhotoSelected(input){
   try{
     var compressed=await compressImage(file);
     var path='partner-banners/'+Date.now()+'.jpg';
-    var up=await sb.storage.from('hero-banners').upload(path, compressed, {contentType:'image/jpeg'});
+    var up=await sb.storage.from('listing-photos').upload(path, compressed, {contentType:'image/jpeg'});
     if(up.error) throw new Error(up.error.message);
-    var pub=sb.storage.from('hero-banners').getPublicUrl(path);
+    var pub=sb.storage.from('listing-photos').getPublicUrl(path);
     $safe('pb-image',function(e){e.value=pub.data.publicUrl;});
     if(statusEl){statusEl.innerHTML='<span class="ico" style="display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>&nbsp;Photo uploaded';}
     renderBannerPreview();
   }catch(err){
-    showToast('Upload failed: '+err.message+' \u2014 make sure the "hero-banners" storage bucket exists in Supabase.');
+    showToast('Upload failed: '+err.message+' \u2014 please try again.');
     if(statusEl){statusEl.style.display='none';}
   }
 }
@@ -7341,7 +7522,7 @@ function closeAdminPanel(){
 function adminFillModel(){var b=document.getElementById('lm-brand').value,list=document.getElementById('lm-model-list');if(!list)return;list.innerHTML='';if(b&&CAR_DB[b])CAR_DB[b].forEach(function(m){var o=document.createElement('option');o.value=m;list.appendChild(o);});}
 
 // ── TOAST ──
-function showToast(msg){var t=document.getElementById('toast');var tm=document.getElementById('tmsg');if(t&&tm){tm.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},2800);}}
+function showToast(msg){var t=document.getElementById('toast');var tm=document.getElementById('tmsg');if(t&&tm){tm.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},20000);}}
 
 // ── SAMPLE DATA ──
 var pendingListings=[
