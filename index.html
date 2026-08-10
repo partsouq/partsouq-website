@@ -55,6 +55,21 @@ window.__LIBS_READY__ = (async function () {
   // way the others above do; PDF export button just checks jsPDF itself is
   // present before offering to run.
   window.__PDF_LIBS_OK__ = !!(okJsPdf && okJsPdfAutotable);
+  // pdf.js -- renders an uploaded PDF drawing's first page to a canvas so
+  // the markup viewer can plot overlay markers on it, the same way it
+  // already does for image uploads. Also a nice-to-have, not core --
+  // MarkupViewerModal falls back to its existing "no page render" banner
+  // if this fails to load, exactly like the __PDF_LIBS_OK__ pattern above.
+  var okPdfJs = await __loadLib([
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
+  ], function () { return typeof window.pdfjsLib !== "undefined"; });
+  if (okPdfJs) {
+    try {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    } catch (e) { okPdfJs = false; }
+  }
+  window.__PDFJS_OK__ = !!okPdfJs;
   return okReact && okReactDom && okBabel && okSupabase && okXlsx;
 })();
 </script>
@@ -443,6 +458,21 @@ const SOURCE_TYPE_LABELS = {
   calculated_quantity: "Calculated Quantity", duplicate_reference: "Duplicate (already counted elsewhere)",
 };
 
+// Master BOQ Engine optimization_status labels/colors (2026-08-09) -- see
+// boq_items.optimization_status's column comment for the full definition of
+// each value; this is just the display layer.
+const OPTIMIZATION_STATUS_LABEL = {
+  drawing_requirement: "Drawing Requirement", engineered: "Engineered", calculated: "Calculated",
+  ai_optimized: "AI Optimized", potential_optimization: "Potential Optimization",
+  review_required: "Review Required", authority_approval_required: "Authority Approval Required",
+};
+const OPTIMIZATION_STATUS_STYLE = {
+  drawing_requirement: "bg-slate-100 text-slate-600", engineered: "bg-blue-100 text-blue-700",
+  calculated: "bg-blue-100 text-blue-700", ai_optimized: "bg-violet-100 text-violet-700",
+  potential_optimization: "bg-amber-100 text-amber-700", review_required: "bg-rose-100 text-rose-700",
+  authority_approval_required: "bg-rose-100 text-rose-700",
+};
+
 // --------------------------------------------------------------------------
 // Active / Passive component classification (added 2026-08-09), applied to
 // every system so a consolidated BOQ reads the way an ELV/MEP engineer
@@ -489,8 +519,136 @@ function classifyComponentType(row) {
 const GROUP_BY_LABELS = {
   system: "System BOQ", floor: "Floor BOQ", project: "Item BOQ",
   category: "Category BOQ", zone: "Zone BOQ", room: "Room BOQ", drawing: "Drawing BOQ",
+  building: "Building BOQ", area: "Area BOQ",
 };
 function GROUP_BY_LABEL(g) { return GROUP_BY_LABELS[g] || "BOQ"; }
+
+// ---------------------------------------------------------------------------
+// Canonical floor normalization (2026-08-10, later still) -- MANDATORY per
+// explicit user spec. floor_label is free text from AI drawing extraction
+// ("B1", "GF", "Ground Floor", "Level 3", "3rd Floor", "RF", "Roof", ...)
+// and the SAME physical floor can arrive under different spellings across
+// different drawings/systems (e.g. "2nd Floor" on one drawing, "Second
+// Floor" on another, "Level 2" on a third). A sort-only fix (the original
+// floorSortRank below, which only ever reordered labels for display) is not
+// enough on its own -- two different spellings of the same floor need to be
+// recognized as the SAME floor for grouping (Group By Floor, floor
+// breakdowns, filters, exports), not just placed next to each other. Every
+// floor label is normalized into one canonical identifier before any BOQ
+// grouping/sorting/display, per this fixed hierarchy:
+//   BF-1, BF-2, BF-3, ... (deepest/most-negative first, NEVER a bare "BF" --
+//   numbered so distinct basement levels never accidentally merge) -> GF ->
+//   MF -> FF -> SF -> TF -> 4F -> 5F -> 6F -> ... -> RF (Roof) -> PH
+//   (Plant/Penthouse)
+// The ORIGINAL raw label is always preserved as sourceLabel (surfaced as
+// `source_floor_label`/`source_floor_labels` on breakdown rows) -- this
+// function decides how items GROUP and SORT, it never discards the source
+// text. A label that cannot be confidently mapped is never guessed into the
+// nearest-looking bucket: it is tagged reviewRequired and canonically named
+// "Unclassified / Review Required", sorting after every real floor (but
+// before Roof/Plant) with its original label kept alongside it, per the
+// user's explicit "do not guess" instruction.
+function normalizeFloorLabel(rawLabel) {
+  const raw = String(rawLabel == null ? "" : rawLabel).trim();
+  if (!raw || raw.toLowerCase() === "unassigned") {
+    return { floorName: "Unassigned", sourceLabel: raw || null, rank: 8000, reviewRequired: false };
+  }
+  if (raw === "Unclassified / Review Required") {
+    return { floorName: raw, sourceLabel: raw, rank: 9000, reviewRequired: true };
+  }
+  // Idempotency guard: re-normalizing one of THIS function's own canonical
+  // outputs (which happens constantly -- e.g. compareFloorLabels sorting
+  // already-canonical floorBreakdown.floor_label values) must be a no-op,
+  // never re-run the heuristic text parse below (which is tuned for messy
+  // free-text drawing labels, not for the short codes this function itself
+  // produces -- "BF-1" or "4F" would otherwise fail every heuristic branch
+  // and wrongly fall through to Unclassified).
+  let m = raw.match(/^BF-(\d+)$/);
+  if (m) return { floorName: raw, sourceLabel: raw, rank: -1000 - parseInt(m[1], 10), reviewRequired: false };
+  if (raw === "GF") return { floorName: "GF", sourceLabel: raw, rank: 0, reviewRequired: false };
+  if (raw === "MF") return { floorName: "MF", sourceLabel: raw, rank: 0.5, reviewRequired: false };
+  if (raw === "FF") return { floorName: "FF", sourceLabel: raw, rank: 1, reviewRequired: false };
+  if (raw === "SF") return { floorName: "SF", sourceLabel: raw, rank: 2, reviewRequired: false };
+  if (raw === "TF") return { floorName: "TF", sourceLabel: raw, rank: 3, reviewRequired: false };
+  // Only floors 4 and up ever come out of THIS function as "NF" (1/2/3 come
+  // out as FF/SF/TF instead) -- so the idempotency short-circuit must only
+  // fire for n>=4. A raw input like "1F"/"2F"/"3F" is a real, legitimate
+  // drawing-label variant a user can type, not one of our own canonical
+  // outputs, and must fall through to the heuristic parse below so it maps
+  // to FF/SF/TF like every other 1st/2nd/3rd-floor spelling.
+  m = raw.match(/^(\d+)F$/);
+  if (m && parseInt(m[1], 10) >= 4) return { floorName: raw, sourceLabel: raw, rank: parseInt(m[1], 10), reviewRequired: false };
+  if (raw === "RF") return { floorName: "RF", sourceLabel: raw, rank: 100000, reviewRequired: false };
+  if (raw === "PH") return { floorName: "PH", sourceLabel: raw, rank: 100001, reviewRequired: false };
+
+  // Heuristic parse of real free-text drawing labels below this point.
+  const s = raw.toLowerCase();
+
+  // Roof / terrace, then Plant / Penthouse -- checked first so e.g. "Roof
+  // Plant Room" resolves to Roof, not Plant, and neither collides with the
+  // numeric-floor patterns further down.
+  if (/\broof\b|\brooftop\b|\bterrace\b|^rf$/i.test(s)) {
+    return { floorName: "RF", sourceLabel: raw, rank: 100000, reviewRequired: false };
+  }
+  if (/\bpenthouse\b|^ph$|\bplant\s*(room|floor|level)?\b/i.test(s)) {
+    return { floorName: "PH", sourceLabel: raw, rank: 100001, reviewRequired: false };
+  }
+
+  // Basement -- ALWAYS numbered (BF-1/BF-2/BF-3...), per the user's explicit
+  // correction, so distinct basement levels never accidentally combine. A
+  // number is pulled from "B1"/"B-1"/"Basement 1"/"Basement Level 2"/
+  // "Sub-basement 2"; a bare "Basement" with no number is the common
+  // single-basement-building label and defaults to BF-1 (the shallowest/
+  // only basement) -- a stated, deliberate default, not a silent guess at
+  // an arbitrary depth.
+  m = s.match(/\bb\s*-?\s*(\d+)\b/i) || s.match(/sub[\s-]?basement\s*(?:level)?\s*-?\s*(\d+)?/i) || s.match(/basement\s*(?:level)?\s*-?\s*(\d+)?/i);
+  if (m) {
+    const n = m[1] ? parseInt(m[1], 10) : 1;
+    return { floorName: `BF-${n}`, sourceLabel: raw, rank: -1000 - n, reviewRequired: false };
+  }
+
+  // Ground
+  if (/\bground\s*(floor)?\b|^gf$|^g$|^gnd$/i.test(s)) {
+    return { floorName: "GF", sourceLabel: raw, rank: 0, reviewRequired: false };
+  }
+  // Mezzanine
+  if (/\bmezzanine\b|\bmezz\b|^mf$|^mz$|^m$/i.test(s)) {
+    return { floorName: "MF", sourceLabel: raw, rank: 0.5, reviewRequired: false };
+  }
+
+  // Ordinal word floors 1st-3rd get their own letter codes per the user's
+  // exact requested scheme (FF/SF/TF), checked before the generic numeric
+  // handling used from the 4th floor upward.
+  if (/\bfirst\s*floor\b|^ff$|\b1st\s*floor\b/i.test(s)) return { floorName: "FF", sourceLabel: raw, rank: 1, reviewRequired: false };
+  if (/\bsecond\s*floor\b|^sf$|\b2nd\s*floor\b/i.test(s)) return { floorName: "SF", sourceLabel: raw, rank: 2, reviewRequired: false };
+  if (/\bthird\s*floor\b|^tf$|\b3rd\s*floor\b/i.test(s)) return { floorName: "TF", sourceLabel: raw, rank: 3, reviewRequired: false };
+
+  // Generic numeric floor: "4F"/"F4"/"Level 4"/"L04"/"L4"/"4th Floor"/bare "4".
+  m = s.match(/^(\d+)\s*-?\s*f$/i) || s.match(/\bf\s*-?\s*(\d+)\b/i) || s.match(/\bl\s*-?\s*0*(\d+)\b/i) || s.match(/\blevel\s*-?\s*(\d+)\b/i) || s.match(/^(\d+)\s*(st|nd|rd|th)?\s*floor\b/i) || s.match(/^(\d+)\s*(st|nd|rd|th)?$/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (n === 1) return { floorName: "FF", sourceLabel: raw, rank: 1, reviewRequired: false };
+    if (n === 2) return { floorName: "SF", sourceLabel: raw, rank: 2, reviewRequired: false };
+    if (n === 3) return { floorName: "TF", sourceLabel: raw, rank: 3, reviewRequired: false };
+    return { floorName: `${n}F`, sourceLabel: raw, rank: n, reviewRequired: false };
+  }
+
+  // Nothing matched confidently -- per the user's explicit "do not guess"
+  // instruction, this is flagged for review rather than silently placed
+  // into the nearest-looking bucket. The original label is kept alongside
+  // it (sourceLabel) so an engineer can see exactly what didn't map.
+  return { floorName: "Unclassified / Review Required", sourceLabel: raw, rank: 9000, reviewRequired: true };
+}
+// Thin wrappers kept for the many existing call sites -- floorSortRank/
+// compareFloorLabels now derive from the single normalizeFloorLabel source
+// of truth above instead of their own separate (and, for word-ordinal
+// labels like "Second Floor"/"Third Floor", incomplete) regex logic.
+function floorSortRank(label) { return normalizeFloorLabel(label).rank; }
+function compareFloorLabels(a, b) {
+  const na = normalizeFloorLabel(a), nb = normalizeFloorLabel(b);
+  if (na.rank !== nb.rank) return na.rank - nb.rank;
+  return String(na.floorName).localeCompare(String(nb.floorName), undefined, { numeric: true });
+}
 
 // The main entry point. Takes raw boq_items rows (already filtered to the
 // latest revision + duplicate-drawing exclusion applied by the caller) plus
@@ -550,26 +708,36 @@ function consolidateBoqItems(items, drawingsById) {
     // Floor breakdown -- the numbers the UI/Excel must reconcile against.
     // Built ONLY from countable rows so floor totals always sum to
     // totalQuantity exactly (section 14's reconciliation requirement).
+    // Grouped by CANONICAL floor identity (normalizeFloorLabel), not the raw
+    // text, so e.g. "2nd Floor" and "Second Floor" from two different
+    // drawings correctly merge into one SF bucket instead of showing as two
+    // separate, un-combined floor rows -- the mandatory floor-normalization
+    // requirement (2026-08-10). Every distinct raw label that fed a bucket
+    // is kept as source_floor_labels for traceability, per the same spec.
     const floorMap = new Map();
     countableRows.forEach(r => {
-      const label = r.floor_label || "Unassigned";
-      floorMap.set(label, (floorMap.get(label) || 0) + Number(r.quantity || 0));
+      const norm = normalizeFloorLabel(r.floor_label || "Unassigned");
+      if (!floorMap.has(norm.floorName)) floorMap.set(norm.floorName, { quantity: 0, sourceLabels: new Set(), reviewRequired: norm.reviewRequired });
+      const entry = floorMap.get(norm.floorName);
+      entry.quantity += Number(r.quantity || 0);
+      if (norm.sourceLabel) entry.sourceLabels.add(norm.sourceLabel);
     });
     const floorBreakdown = [...floorMap.entries()]
-      .map(([floor_label, quantity]) => ({ floor_label, quantity }))
-      .sort((a, b) => a.floor_label.localeCompare(b.floor_label, undefined, { numeric: true }));
+      .map(([floor_label, v]) => ({ floor_label, quantity: v.quantity, source_floor_labels: [...v.sourceLabels], reviewRequired: v.reviewRequired }))
+      .sort((a, b) => compareFloorLabels(a.floor_label, b.floor_label));
 
-    // Zone breakdown, nested under floor where both are present.
+    // Zone breakdown, nested under (canonical) floor where both are present.
     const zoneMap = new Map();
     countableRows.forEach(r => {
+      const floorName = normalizeFloorLabel(r.floor_label || "Unassigned").floorName;
       if (!r.zone) return;
-      const zKey = `${r.floor_label || "Unassigned"}::${r.zone}`;
+      const zKey = `${floorName}::${r.zone}`;
       zoneMap.set(zKey, (zoneMap.get(zKey) || 0) + Number(r.quantity || 0));
     });
     const zoneBreakdown = [...zoneMap.entries()].map(([k, quantity]) => {
       const [floor_label, zone] = k.split("::");
       return { floor_label, zone, quantity };
-    });
+    }).sort((a, b) => compareFloorLabels(a.floor_label, b.floor_label) || a.zone.localeCompare(b.zone, undefined, { numeric: true }));
 
     // Room breakdown -- only meaningful for room-scoped item types (per-room
     // equipment counts), so callers should skip rendering this when every
@@ -577,24 +745,52 @@ function consolidateBoqItems(items, drawingsById) {
     const roomMap = new Map();
     countableRows.forEach(r => {
       if (!r.room) return;
-      const rKey = `${r.floor_label || "Unassigned"}::${r.room}`;
+      const floorName = normalizeFloorLabel(r.floor_label || "Unassigned").floorName;
+      const rKey = `${floorName}::${r.room}`;
       roomMap.set(rKey, (roomMap.get(rKey) || 0) + Number(r.quantity || 0));
     });
     const roomBreakdown = [...roomMap.entries()].map(([k, quantity]) => {
       const [floor_label, room] = k.split("::");
       return { floor_label, room, quantity };
+    }).sort((a, b) => compareFloorLabels(a.floor_label, b.floor_label) || a.room.localeCompare(b.room, undefined, { numeric: true }));
+
+    // Building breakdown (multi-building/villa/tower projects only -- the
+    // AI omits "building" entirely for single-building projects, so most
+    // rows will have an empty buildingBreakdown here, same pattern as zone).
+    const buildingMap = new Map();
+    countableRows.forEach(r => {
+      if (!r.building) return;
+      buildingMap.set(r.building, (buildingMap.get(r.building) || 0) + Number(r.quantity || 0));
     });
+    const buildingBreakdown = [...buildingMap.entries()].map(([building, quantity]) => ({ building, quantity }));
+
+    // Area breakdown (area_label -- distinct from zone/room, e.g. "Basement Parking Area").
+    const areaMap = new Map();
+    countableRows.forEach(r => {
+      if (!r.area_label) return;
+      const floorName = normalizeFloorLabel(r.floor_label || "Unassigned").floorName;
+      const aKey = `${floorName}::${r.area_label}`;
+      areaMap.set(aKey, (areaMap.get(aKey) || 0) + Number(r.quantity || 0));
+    });
+    const areaBreakdown = [...areaMap.entries()].map(([k, quantity]) => {
+      const [floor_label, area_label] = k.split("::");
+      return { floor_label, area_label, quantity };
+    }).sort((a, b) => compareFloorLabels(a.floor_label, b.floor_label) || a.area_label.localeCompare(b.area_label, undefined, { numeric: true }));
 
     // Drawing evidence -- EVERY source row, including reference-only ones,
     // each explicitly tagged with its classification and whether it counted
     // toward the total. This is the "Quantity Basis" traceability data --
     // an engineer can see a schedule/key-plan row was found and considered,
-    // just not double-added.
+    // just not double-added. `floor_label` stays the RAW per-row drawing
+    // text (never overwritten -- this is the traceability copy); a new
+    // `normalizedFloorName` carries the canonical identity alongside it so
+    // any future floor-scoped filter/sort on evidence rows uses the same
+    // canonical hierarchy as everywhere else, without losing the original.
     const evidence = rows.map(r => ({
       id: r.id, drawing_id: r.drawing_id,
       drawing_name: r.drawing_id ? (drawingsById[r.drawing_id]?.file_name || "Unknown drawing") : "AI System Design (no drawing)",
       page: r.coordinates?.page || null,
-      floor_label: r.floor_label, zone: r.zone, room: r.room,
+      floor_label: r.floor_label, normalizedFloorName: normalizeFloorLabel(r.floor_label).floorName, zone: r.zone, room: r.room,
       quantity: r.quantity, confidence_score: r.confidence_score,
       location: r.location, source: r.source, review_status: r.review_status,
       quantitySourceType: r.quantity_source_type || "physical_count",
@@ -602,6 +798,9 @@ function consolidateBoqItems(items, drawingsById) {
       countedTowardTotal: isCountableSourceType(r.quantity_source_type),
       scheduleQuantityCrosscheck: r.schedule_quantity_crosscheck ?? null,
       quantityBasisNotes: r.quantity_basis_notes || null,
+      subsystem: r.subsystem || null, building: r.building || null,
+      fromLocation: r.from_location || null, toLocation: r.to_location || null,
+      optimizationStatus: r.optimization_status || null, optimizationNote: r.optimization_note || null,
     }));
 
     // Schedule-quantity discrepancy check (sections 4, 9, 14, 18): compare
@@ -642,15 +841,25 @@ function consolidateBoqItems(items, drawingsById) {
     const itemTotalCents = (r) => (r.unit_cost_cents || 0) * Number(r.quantity || 0) + (r.material_cost_cents || 0) + (r.installation_cost_cents || 0) + (r.testing_cost_cents || 0);
     const totalCostCents = countableRows.reduce((s, r) => s + itemTotalCents(r), 0);
 
+    // Master BOQ Engine fields (2026-08-09): subsystem/building are shown in
+    // the drill-down, not the main table, per the "simple main table + full
+    // detail on drill-down" decision -- pick the most-common non-empty value
+    // the same way description/spec are picked above.
+    const subsystem = pickCanonical("subsystem");
+    const building = rows.find(r => r.building)?.building || null;
+    const optimizationStatuses = [...new Set(rows.map(r => r.optimization_status).filter(Boolean))];
+
     return {
       key: g.key, itemCode: g.itemCode, systemCategory: g.systemCategory, unit: g.unit,
       description, technical_specification, manufacturer, model_number,
+      subsystem: subsystem || null, building,
       totalQuantity: hasAnyQuantity ? totalQuantity : null, // null (not 0) means "quantity not reliably extracted" -- see section 23
       quantityIsTbd: !hasAnyQuantity,
-      floorBreakdown, zoneBreakdown, roomBreakdown, evidence,
+      floorBreakdown, zoneBreakdown, roomBreakdown, buildingBreakdown, areaBreakdown, evidence,
       sourceCount: rows.length, countableSourceCount: countableRows.length, referenceOnlySourceCount: referenceRows.length,
       avgConfidence, worstStatus, approvalStatus, reviewBucket,
       discrepancy, needsEngineerReview: reviewBucket === "engineer_review",
+      optimizationStatuses,
       totalCostCents, sources: [...new Set(rows.map(r => r.source))],
       rawItems: rows,
     };
@@ -662,6 +871,20 @@ function consolidateBoqItems(items, drawingsById) {
 // rows for display. This is what makes "Group By Floor" still show
 // consolidated per-floor quantities (via floorBreakdown) rather than
 // re-fragmenting already-merged items.
+// Reorders a bucketed object's keys into canonical floor order -- keys are
+// either a bare floor_label ("floor" grouping) or "floor_label / X" ("zone"/
+// "room"/"area" groupings), so the floor portion (before " / ") is always
+// what determines vertical order; anything after that is a plain
+// alphanumeric tiebreaker within the same floor.
+function sortBucketKeysByFloor(g) {
+  const sorted = {};
+  Object.keys(g).sort((a, b) => {
+    const r = compareFloorLabels(a.split(" / ")[0], b.split(" / ")[0]);
+    return r !== 0 ? r : a.localeCompare(b, undefined, { numeric: true });
+  }).forEach(k => { sorted[k] = g[k]; });
+  return sorted;
+}
+
 function bucketConsolidated(consolidated, groupBy) {
   if (groupBy === "project") return { "Project BOQ": consolidated };
   if (groupBy === "system") {
@@ -688,7 +911,7 @@ function bucketConsolidated(consolidated, groupBy) {
         g[fb.floor_label] = g[fb.floor_label] || []; g[fb.floor_label].push({ ...row, totalQuantity: fb.quantity, quantityIsTbd: row.quantityIsTbd });
       });
     });
-    return g;
+    return sortBucketKeysByFloor(g);
   }
   if (groupBy === "zone") {
     const g = {};
@@ -698,7 +921,7 @@ function bucketConsolidated(consolidated, groupBy) {
         g[k] = g[k] || []; g[k].push({ ...row, totalQuantity: zb.quantity, quantityIsTbd: row.quantityIsTbd });
       });
     });
-    return g;
+    return sortBucketKeysByFloor(g);
   }
   if (groupBy === "room") {
     const g = {};
@@ -708,7 +931,26 @@ function bucketConsolidated(consolidated, groupBy) {
         g[k] = g[k] || []; g[k].push({ ...row, totalQuantity: rb.quantity, quantityIsTbd: row.quantityIsTbd });
       });
     });
+    return sortBucketKeysByFloor(g);
+  }
+  if (groupBy === "building") {
+    const g = {};
+    consolidated.forEach(row => {
+      row.buildingBreakdown.forEach(bb => {
+        g[bb.building] = g[bb.building] || []; g[bb.building].push({ ...row, totalQuantity: bb.quantity, quantityIsTbd: row.quantityIsTbd });
+      });
+    });
     return g;
+  }
+  if (groupBy === "area") {
+    const g = {};
+    consolidated.forEach(row => {
+      row.areaBreakdown.forEach(ab => {
+        const k = `${ab.floor_label} / ${ab.area_label}`;
+        g[k] = g[k] || []; g[k].push({ ...row, totalQuantity: ab.quantity, quantityIsTbd: row.quantityIsTbd });
+      });
+    });
+    return sortBucketKeysByFloor(g);
   }
   if (groupBy === "drawing") {
     const g = {};
@@ -728,6 +970,216 @@ function bucketConsolidated(consolidated, groupBy) {
     return g;
   }
   return { "Project BOQ": consolidated };
+}
+
+// ---------------------------------------------------------------------------
+// Simple flat BOQ list -- a single continuous numbered table across every
+// system (Line / System / Item / Location / Qty / Unit / Status / Remarks),
+// matching a classic professional QS/estimator takeoff format. This is an
+// ALTERNATIVE presentation the user can toggle to alongside the two-panel
+// Group-By dashboard above, not a replacement for it -- selected explicitly
+// over replacing the dashboard. Built entirely from consolidatedAll (no new
+// AI call, no new data), so it's always in sync with the main BOQ.
+// ---------------------------------------------------------------------------
+
+// Discrete/countable units get one line PER real location (unrolled from
+// floor/room breakdown, real summed quantities, never invented); continuous
+// units (m, kg, etc. -- cable/pipe/duct runs) stay one aggregated line,
+// since a run doesn't have a single physical count per floor the way a
+// discrete item does. Matches the distinction in the user's own reference
+// example (cameras listed per floor, cable listed as one range line).
+const SIMPLE_BOQ_DISCRETE_UNITS = new Set(["nos", "no", "ea", "each", "unit", "units", "pc", "pcs", "set", "sets", "assembly", "point", "points"]);
+function isDiscreteUnitForSimpleBoq(unit) {
+  if (!unit) return false;
+  return SIMPLE_BOQ_DISCRETE_UNITS.has(String(unit).trim().toLowerCase().replace(/\.+$/, ""));
+}
+
+// Collapses the engine's richer 7-value optimization_status / review
+// classification down to the 3 values a classic BOQ table uses. Nothing is
+// hidden by this collapse -- the fuller classification (including Review
+// Required / Authority Approval flags) stays visible in the drill-down
+// panel and the Master BOQ (Full Detail) export sheet; this is purely a
+// simplified column for this one view, per explicit user choice.
+function simpleBoqStatusFor(row) {
+  const statuses = row.optimizationStatuses || [];
+  // `optimizationStatuses` only ever gets populated by the Master BOQ
+  // Engine's ai-engine prompt (added 2026-08-09) -- any project analyzed
+  // before that change has `optimization_status = NULL` on every row, so
+  // this signal alone silently fails to recognize real engineered/derived
+  // items on existing data (the "Takeoff still shows Designed" bug). Fall
+  // back to `row.sources` (`source: "engineering_rule"`), which has existed
+  // since the very first version of the deterministic accessory-derivation
+  // engine and is populated on every historical row regardless of when it
+  // was extracted -- a reliable signal independent of the newer field.
+  if (statuses.includes("engineered") || (row.sources || []).includes("engineering_rule")) return "Engineered";
+  if (statuses.includes("calculated")) return "Calculated";
+  // Same backward-compatibility fallback for Calculated: `design_system`
+  // rows (no source drawing) have always defaulted their evidence's
+  // quantity_source_type to "calculated_quantity", independent of the newer
+  // optimization_status field.
+  if ((row.evidence || []).some(e => e.quantitySourceType === "calculated_quantity")) return "Calculated";
+  return "Confirmed";
+}
+// --------------------------------------------------------------------------
+// Simple BOQ item ordering (2026-08-10): per the user's explicit request,
+// items within a system are NOT sorted alphabetically -- alphabetical order
+// put "12U Network Cabinet" ahead of "Bullet Camera" purely because "1" <
+// "B", which reads backwards to a real QS/estimator ("BOQ should start
+// from very important items, not from the racks"). Instead this ranks each
+// row into a tier and sorts by tier first, alphabetically within a tier:
+// 0 = primary field devices (camera, detector, sensor, reader, beacon...);
+// 1 = recording/control hubs (NVR/DVR/VMS, server, controller, gateway...);
+// 2 = other active equipment (network switches, UPS, pumps, motors...);
+// 3 = passive infrastructure (cable, conduit, tray, rack, cabinet, patch
+//     panel...); 4 = unrecognized/unclassified; 5 = administrative/lump-sum
+// lines (system-wide testing, commissioning, design/configuration -- these
+// are always LS/lot-unit line items, never a real counted quantity, so they
+// read last as a summary rather than interrupting the equipment list).
+// A small, auditable keyword list -- same design philosophy as
+// BOQ_SYNONYMS/BOQ_STOPWORDS/PASSIVE_KEYWORDS/ACTIVE_KEYWORDS above, not a
+// per-system_category hardcoded table, since "field device -> hub -> other
+// active -> passive -> admin" is a generic structure across every
+// discipline (ELV, Electrical, HVAC, Plumbing, Fire).
+const SIMPLE_BOQ_LUMPSUM_UNITS = new Set(["ls", "lot", "lump sum", "lumpsum", "sum", "job"]);
+const SIMPLE_BOQ_PRIMARY_KEYWORDS = [
+  "camera", "detector", "sensor", "reader", "sounder", "call point", "beacon",
+  "access point", "luminaire", "light fixture", "led fitting", "lamp", "fixture",
+  "antenna", "speaker", "microphone", "strobe", "keypad",
+];
+const SIMPLE_BOQ_HUB_KEYWORDS = [
+  "nvr", "dvr", "recorder", "vms", "video management", "server", "workstation",
+  "controller", "gateway", "panel", "module", "hub",
+];
+function simpleBoqImportanceRank(row) {
+  const unit = String(row.unit || "").trim().toLowerCase().replace(/\.+$/, "");
+  if (SIMPLE_BOQ_LUMPSUM_UNITS.has(unit)) return 5; // admin/lump-sum -- always last
+  const text = `${row.description || ""} ${row.technical_specification || ""}`.toLowerCase();
+  // Earliest-keyword-wins: real BOQ descriptions almost always lead with the
+  // actual product name ("PoE Network Switch for CCTV Cameras...", "Bullet
+  // Camera - Recognition view..."), so whichever tier's keyword appears
+  // FIRST in the text decides the item's category -- this avoids a switch
+  // description that happens to mention "camera" or "cabinet" later in the
+  // text being misfiled as a camera or a passive enclosure.
+  const tiers = [
+    [0, SIMPLE_BOQ_PRIMARY_KEYWORDS],
+    [1, SIMPLE_BOQ_HUB_KEYWORDS],
+    [2, ACTIVE_KEYWORDS],
+    [3, PASSIVE_KEYWORDS],
+  ];
+  let bestTier = 4, bestIndex = Infinity; // 4 = unclassified, sorts after every recognized tier
+  tiers.forEach(([tier, keywords]) => {
+    keywords.forEach(k => {
+      const idx = text.indexOf(k);
+      if (idx !== -1 && idx < bestIndex) { bestIndex = idx; bestTier = tier; }
+    });
+  });
+  return bestTier;
+}
+function simpleBoqRemarksFor(row) {
+  if (row.discrepancy) return `Discrepancy flagged: physical ${row.discrepancy.physicalTotal} vs schedule ${row.discrepancy.scheduleTotal}`;
+  const optNote = row.rawItems.find(r => r.optimization_note)?.optimization_note;
+  if (optNote) return optNote;
+  const basisNote = row.rawItems.find(r => r.quantity_basis_notes)?.quantity_basis_notes;
+  if (basisNote) return basisNote;
+  const status = simpleBoqStatusFor(row);
+  if (status === "Engineered") return "Engineered per accessory/derivation rule";
+  if (status === "Calculated") return "Based on calculated quantity";
+  return "As per drawing";
+}
+// entry is either a floorBreakdown entry ({floor_label, quantity}) or a
+// roomBreakdown entry ({floor_label, room, quantity}) -- both handled here.
+function simpleBoqLocationForEntry(entry) {
+  if (!entry) return "—";
+  const floor = entry.floor_label || "—";
+  return entry.room ? `${floor} – ${entry.room}` : floor;
+}
+function simpleBoqLocationAggregate(row) {
+  const floors = [...new Set((row.floorBreakdown || []).map(f => f.floor_label).filter(Boolean))];
+  const prefix = row.building ? `${row.building} – ` : "";
+  if (floors.length === 0) return row.building || "—";
+  if (floors.length === 1) return prefix + floors[0];
+  if (floors.length <= 3) return prefix + floors.join(", ");
+  return `${prefix}${floors[0]} … ${floors[floors.length - 1]} (${floors.length} floors)`;
+}
+function simpleBoqSumQty(arr) { return arr.reduce((s, e) => s + Number(e.quantity || 0), 0); }
+
+// opts.excludeEngineered: Takeoff BOQ mode -- keep ONLY rows whose status
+// collapses to "Confirmed" (a real, physically-counted symbol/item taken
+// directly from the drawing), dropping both "Engineered" (an accessory the
+// engineering-rules engine derived, e.g. patch cords/licenses -- never
+// itself drawn) AND "Calculated" (an AI-computed estimate -- e.g. cable
+// length scaled from a run, a switch/patch-panel count derived from camera
+// count, a lump-sum testing/commissioning allowance -- explicitly NOT a
+// direct count of a visible symbol, per the AI's own quantity_source_type
+// classification). Originally this only excluded "Engineered", which left
+// every "Calculated" row (network switches, patch panels, cable/conduit
+// runs, UPS-per-cabinet, NVR licenses, testing lump sums -- all tagged
+// quantity_source_type: "calculated_quantity" by the AI itself) showing
+// in Takeoff, which is exactly the bug the user reported ("rack, network
+// switch, patch cord... still shows in takeoff... should only show items
+// taken from the drawing"). Confirmed against the real project's live data
+// via direct SQL: every one of those example items is genuinely tagged
+// calculated_quantity, not physical_count, so this is a correct behavior
+// change, not a guess. So Takeoff BOQ really is "only what's on the
+// drawing," per the user's explicit instruction.
+// opts.floorFilter: when this is being called per-floor-bucket (Group By
+// Floor), the caller has already given us a row whose totalQuantity is
+// correctly scoped to just this floor (via bucketConsolidated's override) --
+// the line for that bucket shows that floor's own total, not the row's
+// full project-wide total.
+//
+// One line per item, always (2026-08-10): earlier versions unrolled a
+// discrete-unit item (cameras, cabinets...) into one line PER physical
+// location whenever room/floor breakdown data existed, even when the view
+// wasn't grouped by floor at all -- so a camera installed on 6 floors at
+// 10/floor showed as 6 separate 10-unit lines instead of one 60-unit line.
+// The user explicitly asked for the opposite: "if each floor has ten
+// cameras for six floors, it should show me sixty cameras in one line."
+// Every item now renders as exactly ONE line: the row's real total quantity
+// (or, inside a Group By Floor bucket, that bucket's own floor-scoped
+// total via floorFilter) with a real, non-fabricated location summary via
+// simpleBoqLocationAggregate() -- never split into per-room/per-floor rows
+// outside of an actual Group By Floor bucket. `isDiscreteUnitForSimpleBoq`/
+// `simpleBoqSumQty`/`simpleBoqLocationForEntry` are left defined-but-
+// unreferenced (dead code, matching this project's established low-risk
+// precedent) rather than deleted, since they backed the now-removed
+// per-location unrolling.
+function buildSimpleBoqLines(consolidatedAll, opts) {
+  opts = opts || {};
+  const excludeEngineered = !!opts.excludeEngineered;
+  const floorFilter = opts.floorFilter || null;
+  const bySystem = {};
+  consolidatedAll.forEach(row => {
+    if (row.quantityIsTbd || row.totalQuantity == null) return; // TBD rows have no reliable qty to place on any line
+    if (excludeEngineered && simpleBoqStatusFor(row) !== "Confirmed") return;
+    (bySystem[row.systemCategory] = bySystem[row.systemCategory] || []).push(row);
+  });
+  const systemOrder = Object.keys(bySystem).sort((a, b) => SYSTEM_LABEL(a).localeCompare(SYSTEM_LABEL(b)));
+  const lines = [];
+  systemOrder.forEach(sysCat => {
+    const sysRows = [...bySystem[sysCat]].sort((a, b) => {
+      const rankDiff = simpleBoqImportanceRank(a) - simpleBoqImportanceRank(b);
+      return rankDiff !== 0 ? rankDiff : a.description.localeCompare(b.description);
+    });
+    sysRows.forEach(row => {
+      lines.push({
+        key: floorFilter ? `${row.key}::${floorFilter}` : row.key, rowKey: row.key,
+        system: SYSTEM_LABEL(sysCat), description: row.description, location: floorFilter || simpleBoqLocationAggregate(row),
+        qty: row.totalQuantity, unit: row.unit, status: simpleBoqStatusFor(row), remarks: simpleBoqRemarksFor(row),
+      });
+    });
+  });
+  return lines.map((l, i) => ({ ...l, line: i + 1 }));
+}
+
+// Sums a set of simple-BOQ lines per unit (mixed units can't be added
+// together meaningfully -- e.g. "45 Nos + 1200 m" stays two numbers, never
+// silently summed into one, matching this project's "math must reconcile,
+// never fabricate" discipline).
+function simpleBoqSubtotalsByUnit(lines) {
+  const byUnit = {};
+  lines.forEach(l => { byUnit[l.unit] = (byUnit[l.unit] || 0) + Number(l.qty || 0); });
+  return Object.entries(byUnit).map(([unit, qty]) => `${qty} ${unit}`).join(", ");
 }
 
 async function callEngine(action, payload) {
@@ -2628,18 +3080,16 @@ function NewProjectForm({ onCreated, onCancel, existingProject }) {
         {err && <div className="text-sm text-rose-600 bg-rose-50 rounded-lg px-3 py-2">{err}</div>}
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="Project Name" required value={form.project_name} onChange={v=>setForm({...form, project_name:v})} />
-          <Field label="Client" value={form.client_name} onChange={v=>setForm({...form, client_name:v})} />
-          <Field label="Consultant" value={form.consultant_name} onChange={v=>setForm({...form, consultant_name:v})} />
           <Field label="Contractor" value={form.contractor_name} onChange={v=>setForm({...form, contractor_name:v})} />
           <Field label="Country" required value={form.country} onChange={v=>setForm({...form, country:v})} />
           <Field label="City" required value={form.city} onChange={v=>setForm({...form, city:v})} />
-          <Field label="Area Size" type="number" value={form.area_size} onChange={v=>setForm({...form, area_size:v})} />
         </div>
         {/* Building Type, Number of Floors, Project Scope, and Required Systems were removed from this
             form per a direct request to keep project setup minimal -- compliance only needs city/country.
-            The underlying columns/defaults still exist and are still used elsewhere (dashboard cards, AI
-            prompts), they're just no longer collected up front; existing projects keep whatever values
-            they already have. */}
+            Client, Consultant, and Area Size were also removed per a follow-up request ("not required").
+            The underlying columns/defaults still exist and are still used elsewhere (exports, dashboard
+            cards) for any project that already has them from before this change -- they're just no
+            longer collected up front for new/edited projects. */}
         <div className="flex gap-3 pt-2">
           <button disabled={busy} className="bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50">{busy ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Project")}</button>
           <button type="button" onClick={onCancel} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
@@ -2659,6 +3109,71 @@ function Field({ label, value, onChange, type="text", required=false }) {
 }
 
 // ---------------------------------------------------------------------------
+// Info card design system (2026-08-10) -- the "Project Information" style
+// requested app-wide (icon badge + label + value tile, dark card, matching
+// a reference screenshot): a colored square icon badge, an uppercase label,
+// and a bold value, three per row on desktop. Built entirely from Tailwind
+// utility classes ALREADY compiled elsewhere in this static build (the
+// bg-*-100/text-*-700 tint pairs are the same ones this app's badges/pills
+// already use, and are already re-declared for dark mode by the 2026-07-30
+// dark-theme <style> block -- see that block's "badge/tint backgrounds"
+// section) -- no new Tailwind classes were introduced, so nothing here risks
+// the "class not compiled in this static build -> silently renders as
+// nothing" failure mode this project has hit before with fresh utility
+// classes (see the Architecture section's standing Tailwind-JIT warning).
+// This is the first application of the new visual language; it establishes
+// the reusable component so it can be extended to further screens (both
+// end-user and admin) in follow-up passes without re-deriving the pattern.
+const INFO_CARD_TONES = {
+  blue: "bg-blue-100 text-blue-700", violet: "bg-violet-100 text-violet-700",
+  emerald: "bg-emerald-100 text-emerald-700", amber: "bg-amber-100 text-amber-700",
+  teal: "bg-teal-100 text-teal-700",
+};
+// Small dot indicators (e.g. the Status card's live dot) use plain inline
+// hex, same precedent as SYSTEM_COLORS above -- no solid (non-tinted) "-500"
+// background utility class is compiled anywhere in this static build, so a
+// Tailwind class here would silently no-op.
+const INFO_CARD_DOT_HEX = { emerald: "#34d399", amber: "#fbbf24", blue: "#60a5fa", slate: "#6b7490", rose: "#fb7185" };
+function InfoIcon({ name }) {
+  const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  const byName = {
+    location: <><path d="M21 10c0 6.5-9 12-9 12s-9-5.5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></>,
+    building: <><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></>,
+    layers: <><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>,
+    target: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></>,
+    status: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,
+    user: <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></>,
+    shield: <><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M9 12l2 2 4-4"/></>,
+  };
+  return <svg {...common}>{byName[name]}</svg>;
+}
+function InfoCard({ icon, tone = "blue", label, value, action, dotTone }) {
+  return (
+    <div className="bg-white border rounded-xl p-4 flex items-start gap-3">
+      <div className={`shrink-0 rounded-lg p-2.5 ${INFO_CARD_TONES[tone] || INFO_CARD_TONES.blue}`}><InfoIcon name={icon} /></div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold text-slate-500 uppercase flex items-center justify-between gap-2">
+          <span>{label}</span>
+          {action}
+        </div>
+        <div className="text-sm font-semibold mt-1 flex items-center gap-1.5">
+          {dotTone && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: INFO_CARD_DOT_HEX[dotTone] || INFO_CARD_DOT_HEX.slate }}></span>}
+          <span className="truncate">{value ?? "—"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+function InfoCardGrid({ children }) {
+  return <div className="grid md:grid-cols-3 gap-3">{children}</div>;
+}
+const PROJECT_STATUS_STYLE = {
+  active: { label: "Active", dot: "emerald" }, on_hold: { label: "On Hold", dot: "amber" },
+  completed: { label: "Completed", dot: "blue" }, archived: { label: "Archived", dot: "slate" },
+};
+
+// ---------------------------------------------------------------------------
 // Project workspace (tabs)
 // ---------------------------------------------------------------------------
 function ProjectWorkspace({ project, onBack, onEdit }) {
@@ -2675,7 +3190,7 @@ function ProjectWorkspace({ project, onBack, onEdit }) {
   // change low-risk -- they can be fully removed in a later cleanup pass.
   const tabs = [
     ["overview","Overview"], ["drawings","Drawings & AI Analysis"], ["design","System Design (No Drawings)"],
-    ["boq","BOQ"],
+    ["boq","BOQ"], ["specification","Specification"],
     ["compliance","Compliance"], ["products","Product Recommendations"],
     ["export","Export"], ["chat","AI Assistant"],
   ];
@@ -2694,10 +3209,11 @@ function ProjectWorkspace({ project, onBack, onEdit }) {
           <button key={k} onClick={()=>setTab(k)} className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 ${tab===k ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{l}</button>
         ))}
       </div>
-      {tab === "overview" && <OverviewTab project={project} />}
+      {tab === "overview" && <OverviewTab project={project} onViewFloors={() => setTab("boq")} />}
       {tab === "drawings" && <DrawingsTab project={project} />}
       {tab === "design" && <DesignTab project={project} />}
       {tab === "boq" && <BoqTab project={project} />}
+      {tab === "specification" && <SpecificationTab project={project} />}
       {tab === "compliance" && <ComplianceTab project={project} />}
       {tab === "products" && <ProductsTab project={project} />}
       {tab === "export" && <ExportTab project={project} />}
@@ -2706,24 +3222,74 @@ function ProjectWorkspace({ project, onBack, onEdit }) {
   );
 }
 
-function OverviewTab({ project }) {
+// "Project Information" card grid (2026-08-10) -- matches the requested
+// reference design: Location/Building Type/Floors, Project Scope/Status/
+// Start Date, Last Updated/Access Role/Data Security. Every value is real:
+// Location/Building Type/Floors/Project Scope come straight off the project
+// row; Status reads the real `projects.status` column (defaulted 'active'
+// at creation, no UI to change it yet -- shown honestly as whatever it is,
+// not fabricated); Start Date is `created_at`; Last Updated is `updated_at`
+// -- which a new DB trigger (`trg_projects_updated_at`, added alongside this
+// change) now genuinely bumps on every edit, so this card is never a stale
+// copy of the creation date dressed up as "Last Updated"; Access Role is
+// computed from the real signed-in user (Project Owner if `user.id ===
+// project.owner_id`, else their real `profiles.role`); Data Security is a
+// static but factually true statement (every project table is RLS-scoped to
+// its owner and the drawings storage bucket is private -- see Architecture
+// section), not a fabricated metric.
+function OverviewTab({ project, onViewFloors }) {
+  const [access, setAccess] = useState(null); // { label }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user || cancelled) return;
+      if (user.id === project.owner_id) { setAccess({ label: "Project Owner" }); return; }
+      const { data: prof } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      const role = prof?.role ? prof.role.charAt(0).toUpperCase() + prof.role.slice(1) : "Team Member";
+      if (!cancelled) setAccess({ label: role });
+    })();
+    return () => { cancelled = true; };
+  }, [project.id, project.owner_id]);
+
+  const statusInfo = PROJECT_STATUS_STYLE[project.status] || { label: project.status ? SYSTEM_LABEL(project.status) : "—", dot: "slate" };
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const fmtDateTime = (iso) => iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      {[
-        ["Client", project.client_name], ["Consultant", project.consultant_name], ["Contractor", project.contractor_name],
-        ["Location", `${project.city}, ${project.country}`], ["Floors", project.number_of_floors],
-        ["Area", project.area_size ? `${project.area_size} ${project.area_unit}` : "-"],
-      ].map(([l,v]) => (
-        <div key={l} className="bg-white border rounded-xl p-4">
-          <div className="text-xs font-semibold text-slate-500 uppercase">{l}</div>
-          <div className="text-sm mt-1">{v || "—"}</div>
-        </div>
-      ))}
-      <div className="md:col-span-2 bg-white border rounded-xl p-4">
-        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Project Scope</div>
-        <div className="text-sm">{project.project_scope || "—"}</div>
+    <div className="space-y-6">
+      <div>
+        <div className="text-sm font-semibold mb-3">Project Information</div>
+        <InfoCardGrid>
+          <InfoCard icon="location" tone="blue" label="Project Location" value={`${project.city || "—"}, ${project.country || "—"}`} />
+          <InfoCard icon="building" tone="violet" label="Building Type" value={BUILDING_TYPES.find(b => b[0] === project.building_type)?.[1] || project.building_type || "—"} />
+          <InfoCard icon="layers" tone="emerald" label="Floors" value={project.number_of_floors != null ? `${project.number_of_floors} Floors` : "—"}
+            action={onViewFloors && <button onClick={onViewFloors} className="text-[11px] font-semibold text-blue-700 hover:underline shrink-0">View Floors →</button>} />
+          <InfoCard icon="target" tone="amber" label="Project Scope" value={project.project_scope || "—"} />
+          <InfoCard icon="status" tone="teal" label="Status" value={statusInfo.label} dotTone={statusInfo.dot} />
+          <InfoCard icon="calendar" tone="blue" label="Start Date" value={fmtDate(project.created_at)} />
+          <InfoCard icon="calendar" tone="violet" label="Last Updated" value={fmtDateTime(project.updated_at)} />
+          <InfoCard icon="user" tone="amber" label="Access Role" value={access?.label || "—"} />
+          <InfoCard icon="shield" tone="teal" label="Data Security" value="Protected" />
+        </InfoCardGrid>
       </div>
-      <div className="md:col-span-2 bg-white border rounded-xl p-4">
+
+      <div>
+        <div className="text-sm font-semibold mb-3">Project Team &amp; Area</div>
+        <div className="grid md:grid-cols-2 gap-4">
+          {[
+            ["Client", project.client_name], ["Consultant", project.consultant_name], ["Contractor", project.contractor_name],
+            ["Area", project.area_size ? `${project.area_size} ${project.area_unit}` : "-"],
+          ].map(([l,v]) => (
+            <div key={l} className="bg-white border rounded-xl p-4">
+              <div className="text-xs font-semibold text-slate-500 uppercase">{l}</div>
+              <div className="text-sm mt-1">{v || "—"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
         <div className="text-xs font-semibold text-slate-500 uppercase mb-2">Required Systems</div>
         <div className="flex flex-wrap gap-2">
           {(project.required_systems || []).map(s => <span key={s} className="text-xs px-2.5 py-1 bg-slate-100 rounded-full">{SYSTEM_LABEL(s)}</span>)}
@@ -3102,14 +3668,17 @@ function DrawingsTab({ project }) {
 function MarkupViewerModal({ drawing, onClose }) {
   const [items, setItems] = useState([]);
   const [imgUrl, setImgUrl] = useState(null);
+  const [pageRenderFailed, setPageRenderFailed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
   const isImage = drawing.file_type === "image" || drawing.file_type === "scan";
+  const isPdf = drawing.file_type === "pdf";
 
   useEffect(() => { load(); }, [drawing.id]);
   async function load() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setPageRenderFailed(false);
     try {
       const { data, error: qErr } = await sb.from("boq_items").select("*").eq("drawing_id", drawing.id).order("revision_number", { ascending: false });
       if (qErr) throw qErr;
@@ -3119,11 +3688,74 @@ function MarkupViewerModal({ drawing, onClose }) {
         const { data: signed, error: sErr } = await sb.storage.from("drawings").createSignedUrl(drawing.storage_path, 300);
         if (sErr) throw sErr;
         setImgUrl(signed.signedUrl);
+      } else if (isPdf) {
+        // Renders the PDF's first page to a canvas via pdf.js, then reuses
+        // that as a data-URL "image" -- every marker-overlay/download code
+        // path below already works off imgUrl regardless of where it came
+        // from, so no separate rendering path is needed for PDFs. Falls
+        // back to the existing "no page render" banner (pageRenderFailed)
+        // rather than breaking the modal if pdf.js isn't available or the
+        // render throws -- the item list below still works either way.
+        try {
+          if (!window.__PDFJS_OK__ || !window.pdfjsLib) throw new Error("pdf.js not available");
+          const { data: signed, error: sErr } = await sb.storage.from("drawings").createSignedUrl(drawing.storage_path, 300);
+          if (sErr) throw sErr;
+          const pdf = await window.pdfjsLib.getDocument(signed.signedUrl).promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+          setImgUrl(canvas.toDataURL("image/png"));
+        } catch (pdfErr) {
+          console.error("PDF page render failed:", pdfErr);
+          setPageRenderFailed(true);
+        }
       }
     } catch (e) {
       console.error("MarkupViewerModal load failed:", e);
       setError(e.message || "Could not load markup data for this drawing.");
     } finally { setLoading(false); }
+  }
+
+  // Composites the currently-shown base image/rendered page plus every
+  // marker overlay onto an offscreen canvas at the image's real resolution,
+  // then triggers a PNG download -- so the "view" and "download" the user
+  // sees are always the exact same markup, never two different renderers
+  // drifting apart. Wrapped defensively: if the image host doesn't return
+  // CORS headers permitting canvas export, this fails gracefully with a
+  // clear message instead of a silent broken download.
+  async function downloadMarkup() {
+    if (!imgUrl) return;
+    setDownloading(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = () => reject(new Error("Could not load the drawing image for export.")); img.src = imgUrl; });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      located.forEach(it => {
+        const color = systemColor(it.system_category);
+        const drawMarker = (x, y) => {
+          const w = Math.max(it.coordinates.width || 0, 0.01) * canvas.width;
+          const h = Math.max(it.coordinates.height || 0, 0.01) * canvas.height;
+          const px = x * canvas.width, py = y * canvas.height;
+          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(px, py, w, h);
+          ctx.fillStyle = color + "33"; ctx.fillRect(px, py, w, h);
+        };
+        drawMarker(it.coordinates.x || 0, it.coordinates.y || 0);
+        (Array.isArray(it.coordinates.instances) ? it.coordinates.instances : []).forEach(inst => drawMarker(inst.x || 0, inst.y || 0));
+      });
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url; a.download = `${drawing.file_name || "drawing"}-markup.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) {
+      console.error("downloadMarkup failed:", e);
+      alert("Could not export the markup image: " + e.message + ". You can still use your browser's screenshot tool on the view above.");
+    } finally { setDownloading(false); }
   }
 
   const located = items.filter(i => i.coordinates && i.coordinates.x != null && i.coordinates.y != null);
@@ -3138,7 +3770,10 @@ function MarkupViewerModal({ drawing, onClose }) {
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Drawing Markup — {drawing.file_name}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-3">
+            {imgUrl && <button onClick={downloadMarkup} disabled={downloading} className="text-xs font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-50">{downloading ? "Preparing…" : "Download Markup (PNG)"}</button>}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+          </div>
         </div>
         {loading ? <div className="text-slate-400 text-sm py-8 text-center">Loading…</div> : error ? (
           <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between">
@@ -3147,7 +3782,7 @@ function MarkupViewerModal({ drawing, onClose }) {
           </div>
         ) : (
           <React.Fragment>
-            {!isImage && (
+            {!imgUrl && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-4">
                 {drawing.file_type === "dxf" ? (
                   "This DXF was analyzed by the AI reading the actual CAD exchange-format text (real entity/layer/block data, not a visual estimate), but there's no rendered drawing image to place markers on, so on-drawing positions aren't shown for DXF items — the item list below is still the AI's real read of your file's data."
@@ -3159,8 +3794,10 @@ function MarkupViewerModal({ drawing, onClose }) {
                   ) : (
                     "This file type needs a PDF or image export attached before AI analysis (and markup) can run — use \"Attach Export for AI\" on the Drawings tab."
                   )
+                ) : isPdf ? (
+                  "Couldn't render this PDF's first page for the markup overlay (the page-render library may not have loaded, or this PDF uses an unsupported feature) — the item list below still shows every extracted item and its page/coordinates."
                 ) : (
-                  "Inline page rendering with overlay markers is only available for image (PNG/JPG) uploads in this release — PDF page-image rendering is on the roadmap. Item locations below are still shown as page numbers and coordinates where the AI captured them."
+                  "Inline page rendering with overlay markers is only available for image (PNG/JPG) uploads in this release. Item locations below are still shown as page numbers and coordinates where the AI captured them."
                 )}
               </div>
             )}
@@ -3174,7 +3811,7 @@ function MarkupViewerModal({ drawing, onClose }) {
                 ))}
               </div>
             )}
-            {isImage && imgUrl && (
+            {imgUrl && (
               <div className="qtr-markup-wrap relative border rounded-lg overflow-hidden bg-slate-100 mb-4">
                 <img src={imgUrl} className="w-full block" alt={drawing.file_name} />
                 {located.map(it => {
@@ -3213,6 +3850,7 @@ function MarkupViewerModal({ drawing, onClose }) {
                 })}
               </div>
             )}
+            {imgUrl && isPdf && <div className="text-[10px] text-slate-400 mb-4 -mt-3">Showing page 1 of this PDF. Marker positions for items reported on other pages are still listed below but not plotted on this page image.</div>}
             {located.length === 0 && unlocated.length === 0 && (
               <div className="border-2 border-dashed rounded-xl p-8 text-center text-slate-400 text-sm">No BOQ items recorded for this drawing yet.</div>
             )}
@@ -3421,27 +4059,36 @@ function BoqTab({ project }) {
   const [rules, setRules] = useState([]);
   const [groupBy, setGroupBy] = useState("system");
   const [filterSystem, setFilterSystem] = useState("all");
-  // The left-hand bucket list (systems/floors/etc., per groupBy) selects
-  // which bucket's items show in the right-hand detail panel -- this is the
-  // two-panel "BOQ – Group by System" layout from the reference screenshot,
-  // replacing the old single long stacked-table layout.
-  const [selectedBucket, setSelectedBucket] = useState(null);
-  // 2026-08-09 redesign, second pass: the Breakdown/Drawing Evidence/Zones/
-  // Notes panel is now a persistent system-wide panel below the item table
-  // (matching the reference screenshot exactly -- a Floor x Item matrix
-  // aggregated across every item in the bucket), not a per-row expand.
-  // `focusedItemKey` narrows that panel to one item when its eye icon is
-  // clicked; `activeSystemTab` is which of the 4 tabs is showing.
+  // BOQ Type (2026-08-10): "designed" = complete system solution (every
+  // required item, including engineered/derived accessories) vs "takeoff" =
+  // only what was physically taken off the drawings. Drives
+  // buildSimpleBoqLines' opts.excludeEngineered.
+  const [boqListType, setBoqListType] = useState("designed");
+  // `focusedItemKey` opens the persistent Breakdown/Evidence/Notes drill-down
+  // panel below the Simple List table, scoped to one item via its "View"
+  // action -- this replaces the former two-panel dashboard's per-bucket
+  // panel now that the Dashboard View toggle has been removed per explicit
+  // user request ("remove the option dashboard view no required").
   const [focusedItemKey, setFocusedItemKey] = useState(null);
   const [activeSystemTab, setActiveSystemTab] = useState("breakdown");
-  const [itemPage, setItemPage] = useState(0);
-  const ITEMS_PER_PAGE = 25;
   const [openComments, setOpenComments] = useState(null);
   const [comments, setComments] = useState({});
   const [commentText, setCommentText] = useState("");
   const [reworking, setReworking] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Master BOQ Engine supporting data (2026-08-09): AI-proposed cost
+  // optimizations, disclosed assumptions, and review-required flags, kept in
+  // their own tables (not boq_items) since they aren't always 1:1 with a
+  // single line item -- see the migration comment on cost_optimizations.
+  const [costOptimizations, setCostOptimizations] = useState([]);
+  const [assumptions, setAssumptions] = useState([]);
+  const [reviewItems, setReviewItems] = useState([]);
+  const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
+  // Simple List View pagination -- only used for the flat/"project" grouping
+  // (see groupedSimpleBoq below); grouped modes render each group in full.
+  const [simpleBoqPage, setSimpleBoqPage] = useState(0);
+  const SIMPLE_BOQ_PAGE_SIZE = 50;
 
   useEffect(() => { load(); }, [project.id]);
   async function load() {
@@ -3457,12 +4104,29 @@ function BoqTab({ project }) {
       const { data: er, error: erErr } = await sb.from("engineering_rules").select("*");
       if (erErr) throw erErr;
       setRules(er || []);
+      const [{ data: co }, { data: asm }, { data: rev }] = await Promise.all([
+        sb.from("cost_optimizations").select("*").eq("project_id", project.id).order("created_at", { ascending: false }),
+        sb.from("boq_assumptions").select("*").eq("project_id", project.id).order("created_at", { ascending: false }),
+        sb.from("boq_review_items").select("*").eq("project_id", project.id).order("created_at", { ascending: false }),
+      ]);
+      setCostOptimizations(co || []);
+      setAssumptions(asm || []);
+      setReviewItems(rev || []);
     } catch (e) {
       console.error("BoqTab.load failed:", e);
       setError(e.message || "Could not load the BOQ for this project.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function setCostOptimizationStatus(id, status) {
+    await sb.from("cost_optimizations").update({ status }).eq("id", id);
+    setCostOptimizations(rows => rows.map(r => r.id === id ? { ...r, status } : r));
+  }
+  async function setReviewItemStatus(id, status) {
+    await sb.from("boq_review_items").update({ status }).eq("id", id);
+    setReviewItems(rows => rows.map(r => r.id === id ? { ...r, status } : r));
   }
 
   async function updateCost(id, field, dollarsStr) {
@@ -3529,26 +4193,49 @@ function BoqTab({ project }) {
 
   const consolidatedAll = useMemo(() => consolidateBoqItems(eligibleItems, drawingsById), [eligibleItems, drawingsById]);
   const consolidated = useMemo(() => filterSystem === "all" ? consolidatedAll : consolidatedAll.filter(r => r.systemCategory === filterSystem), [consolidatedAll, filterSystem]);
-  const buckets = useMemo(() => bucketConsolidated(consolidated, groupBy), [consolidated, groupBy]);
-  // Ordered list of [bucketName, bucketRows] pairs backing the left-hand
-  // panel of the merged "BOQ - Group by <groupBy>" layout (2026-08-09).
-  const bucketEntries = useMemo(() => Object.entries(buckets), [buckets]);
-  // Keep selectedBucket valid whenever groupBy/filterSystem/data changes --
-  // default to the first bucket so the right-hand panel is never empty when
-  // buckets exist, and clear it when there are none.
-  useEffect(() => {
-    if (bucketEntries.length === 0) { setSelectedBucket(null); return; }
-    if (!bucketEntries.some(([name]) => name === selectedBucket)) setSelectedBucket(bucketEntries[0][0]);
-  }, [bucketEntries]);
-
-  // Reset the item-focus/tab/pagination state whenever the selected bucket
-  // changes, so switching systems doesn't leave a stale item focused or a
-  // stale page number showing.
+  // Lookup map backing the Simple List View's per-line "View" action -- a
+  // line only carries rowKey, this resolves it back to the full consolidated
+  // row (with its evidence/breakdown) for SystemDetailPanel.
+  const rowsByKey = useMemo(() => { const m = {}; consolidated.forEach(r => { m[r.key] = r; }); return m; }, [consolidated]);
+  // Simple List View grouping (2026-08-10 redesign): the former two-panel
+  // dashboard's Group By dropdown and "System BOQ" bucketing now live here
+  // instead, per explicit user request ("shift it to simple list view").
+  // Deliberately scoped to System/Category/Floor/Building/Flat(Project) --
+  // Zone/Room/Drawing/Area are NOT offered here, unlike the old dashboard's
+  // dropdown: those dimensions can fragment a row's breakdown in ways that
+  // don't reconcile cleanly with buildSimpleBoqLines' per-location unrolling
+  // (a correctness risk, not a missing feature -- those groupings are still
+  // fully available in the drill-down panel below and the Master BOQ
+  // export). Falls back to "system" if groupBy is currently set to one of
+  // the dropped values (e.g. from a stale default).
+  const SIMPLE_BOQ_GROUP_BY_OPTIONS = ["system", "category", "floor", "building", "project"];
+  const effectiveGroupBy = SIMPLE_BOQ_GROUP_BY_OPTIONS.includes(groupBy) ? groupBy : "system";
+  const groupedSimpleBoq = useMemo(() => {
+    const opts = { excludeEngineered: boqListType === "takeoff" };
+    if (effectiveGroupBy === "project") {
+      return [{ groupName: null, lines: buildSimpleBoqLines(consolidated, opts) }];
+    }
+    const buckets = bucketConsolidated(consolidated, effectiveGroupBy);
+    let counter = 0;
+    return Object.entries(buckets).map(([bucketName, bucketRows]) => {
+      // bucketConsolidated's "floor" grouping keys are the bare floor label
+      // itself (see sortBucketKeysByFloor), so it's passed straight through
+      // as floorFilter to correctly scope each bucket row's breakdown/
+      // location to just this floor (see buildSimpleBoqLines' opts doc).
+      const lines = buildSimpleBoqLines(bucketRows, { ...opts, floorFilter: effectiveGroupBy === "floor" ? bucketName : null })
+        .map(l => ({ ...l, line: ++counter }));
+      return { groupName: bucketName, lines };
+    });
+  }, [consolidated, effectiveGroupBy, boqListType]);
+  const simpleBoqLines = useMemo(() => groupedSimpleBoq.flatMap(g => g.lines), [groupedSimpleBoq]);
+  useEffect(() => { setSimpleBoqPage(0); }, [consolidated, effectiveGroupBy, boqListType]);
+  // Reset the item-focus/tab state whenever the grouping/type/filter
+  // changes, so switching Group By or BOQ Type doesn't leave a stale item
+  // focused in the drill-down panel below.
   useEffect(() => {
     setFocusedItemKey(null);
     setActiveSystemTab("breakdown");
-    setItemPage(0);
-  }, [selectedBucket]);
+  }, [effectiveGroupBy, boqListType, filterSystem]);
 
   // Former ProcurementBoqTab logic, merged in (2026-08-09) -- required
   // accessories derived from engineering_rules, no separate AI call or tab.
@@ -3734,7 +4421,11 @@ function BoqTab({ project }) {
     const rows = focusedKey ? bucketRows.filter(r => r.key === focusedKey) : bucketRows;
     const focusedRow = focusedKey ? bucketRows.find(r => r.key === focusedKey) : null;
     const hasZones = rows.some(r => r.zoneBreakdown.length > 0);
-    const allFloors = [...new Set(rows.flatMap(r => r.floorBreakdown.map(fb => fb.floor_label)))];
+    // Sorted via compareFloorLabels -- the raw Set union above preserves only
+    // first-occurrence order across rows, which is NOT the canonical floor
+    // sequence (this was a real ordering bug: floors could render in
+    // whatever order items happened to be encountered, not BF->GF->...->RF).
+    const allFloors = [...new Set(rows.flatMap(r => r.floorBreakdown.map(fb => fb.floor_label)))].sort(compareFloorLabels);
     const allEvidence = rows.flatMap(r => r.evidence.map(ev => ({ ...ev, itemDescription: r.description, unit: r.unit })))
       .sort((a,b) => (b.confidence_score||0) - (a.confidence_score||0));
     const [showAllEvidence, setShowAllEvidence] = useState(false);
@@ -3775,15 +4466,29 @@ function BoqTab({ project }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {allFloors.map(floor => (
-                          <tr key={floor}>
-                            <td className="px-3 py-1.5">{floor}</td>
-                            {rows.map(r => {
-                              const fb = r.floorBreakdown.find(f => f.floor_label === floor);
-                              return <td key={r.key} className="px-3 py-1.5 text-right">{fb ? fb.quantity : "—"}</td>;
-                            })}
-                          </tr>
-                        ))}
+                        {allFloors.map(floor => {
+                          // Surface the review-required flag / original source
+                          // label(s) as a tooltip on the canonical floor name --
+                          // normalization never hides an unmapped label, it just
+                          // sorts it into its own reviewable bucket (see
+                          // normalizeFloorLabel above).
+                          const sample = rows.map(r => r.floorBreakdown.find(f => f.floor_label === floor)).find(Boolean);
+                          const srcLabels = sample?.source_floor_labels || [];
+                          const isReview = !!sample?.reviewRequired;
+                          const title = srcLabels.length ? `Source label(s): ${srcLabels.join(", ")}` : undefined;
+                          return (
+                            <tr key={floor}>
+                              <td className="px-3 py-1.5" title={title}>
+                                {floor}
+                                {isReview && <span className="ml-1 text-amber-600" title="Could not be confidently mapped to the standard floor hierarchy -- shown under its original label, not guessed">⚠</span>}
+                              </td>
+                              {rows.map(r => {
+                                const fb = r.floorBreakdown.find(f => f.floor_label === floor);
+                                return <td key={r.key} className="px-3 py-1.5 text-right">{fb ? fb.quantity : "—"}</td>;
+                              })}
+                            </tr>
+                          );
+                        })}
                         <tr className="font-semibold bg-slate-50">
                           <td className="px-3 py-1.5">Total</td>
                           {rows.map(r => <td key={r.key} className="px-3 py-1.5 text-right">{r.totalQuantity}</td>)}
@@ -3915,6 +4620,24 @@ function BoqTab({ project }) {
                         <div className="text-slate-600">Reconciled quantity {row.totalQuantity} {row.unit} + {finalProcurementQty(row).spare}% spare = <strong>{finalProcurementQty(row).final} {row.unit}</strong> to procure.</div>
                       ) : <div className="text-slate-400 italic">Quantity is TBD / engineer review required — no spare allowance calculated yet.</div>}
                     </div>
+                    {(row.optimizationStatuses.length > 0 || row.subsystem || row.building || row.evidence.some(e => e.fromLocation || e.toLocation)) && (
+                      <div>
+                        <div className="font-semibold text-slate-700 mb-1">Engineering classification</div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {row.subsystem && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Subsystem: {row.subsystem}</span>}
+                          {row.building && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Building: {row.building}</span>}
+                          {row.optimizationStatuses.map(s => (
+                            <span key={s} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${OPTIMIZATION_STATUS_STYLE[s] || "bg-slate-100 text-slate-600"}`} title={OPTIMIZATION_STATUS_LABEL[s] || s}>{OPTIMIZATION_STATUS_LABEL[s] || s}</span>
+                          ))}
+                        </div>
+                        {row.rawItems.find(r => r.optimization_note) && (
+                          <div className="text-slate-500 mt-1">{row.rawItems.find(r => r.optimization_note).optimization_note}</div>
+                        )}
+                        {row.evidence.filter(e => e.fromLocation || e.toLocation).map(e => (
+                          <div key={e.id} className="text-slate-500 mt-1">Run: {e.fromLocation || "?"} → {e.toLocation || "?"}</div>
+                        ))}
+                      </div>
+                    )}
                     <details>
                       <summary className="font-semibold text-slate-700 cursor-pointer select-none">Quantity basis &amp; engineering notes ▸</summary>
                       <div className="mt-2 space-y-2">
@@ -4016,6 +4739,81 @@ function BoqTab({ project }) {
         )}
       </div>
 
+      {/* Master BOQ Engine (2026-08-09): cost-optimization proposals,
+          disclosed assumptions, and review-required flags the AI surfaced
+          alongside the BOQ itself. Collapsed by default -- summary line only
+          -- per the "simple main table + full detail one click deeper"
+          decision; nothing here is ever silently applied to a boq_items row,
+          matching the "explicit requirement always wins" rule. */}
+      {(costOptimizations.length > 0 || assumptions.length > 0 || reviewItems.length > 0) && (
+        <div className="bg-white border rounded-xl p-4 mb-4">
+          <button onClick={() => setShowOptimizationPanel(v => !v)} className="w-full flex items-center justify-between text-left">
+            <div className="text-xs font-semibold text-slate-500 uppercase">AI Optimization &amp; Review</div>
+            <div className="text-xs text-slate-600 flex items-center gap-3">
+              {costOptimizations.filter(o => o.status === "proposed").length > 0 && <span className="font-semibold text-amber-700">{costOptimizations.filter(o => o.status === "proposed").length} optimization(s) proposed</span>}
+              {assumptions.length > 0 && <span>{assumptions.length} assumption(s)</span>}
+              {reviewItems.filter(r => r.status === "open").length > 0 && <span className="font-semibold text-rose-700">{reviewItems.filter(r => r.status === "open").length} review item(s)</span>}
+              <span className="text-slate-400">{showOptimizationPanel ? "▲" : "▼"}</span>
+            </div>
+          </button>
+          {showOptimizationPanel && (
+            <div className="mt-3 space-y-4">
+              {costOptimizations.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-700 mb-1.5">Cost Optimization Proposals — never applied automatically</div>
+                  <div className="space-y-2">
+                    {costOptimizations.map(o => (
+                      <div key={o.id} className="border rounded-lg p-2.5 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-semibold text-slate-800">{o.title}{o.boq_item_id && rawItems.find(i => i.id === o.boq_item_id) ? <span className="font-normal text-slate-400"> — {rawItems.find(i => i.id === o.boq_item_id).description}</span> : ""}</div>
+                          <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${o.status === "accepted" ? "bg-emerald-100 text-emerald-700" : o.status === "rejected" ? "bg-slate-200 text-slate-500" : "bg-amber-100 text-amber-700"}`}>{o.status}</span>
+                        </div>
+                        {o.original_approach && <div className="text-slate-500 mt-1"><span className="font-semibold">Original: </span>{o.original_approach}</div>}
+                        {o.optimized_approach && <div className="text-slate-500"><span className="font-semibold">Optimized: </span>{o.optimized_approach}</div>}
+                        {o.estimated_savings_note && <div className="text-slate-500"><span className="font-semibold">Est. savings: </span>{o.estimated_savings_note}</div>}
+                        {o.status === "proposed" && (
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => setCostOptimizationStatus(o.id, "accepted")} className="text-[11px] font-semibold bg-emerald-600 text-white px-2.5 py-1 rounded-lg">Accept</button>
+                            <button onClick={() => setCostOptimizationStatus(o.id, "rejected")} className="text-[11px] font-semibold bg-white border px-2.5 py-1 rounded-lg">Reject</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {assumptions.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-700 mb-1.5">Assumptions Made</div>
+                  <ul className="text-xs text-slate-600 list-disc pl-4 space-y-1">
+                    {assumptions.map(a => (
+                      <li key={a.id}>{a.assumption_text}{a.boq_item_id && rawItems.find(i => i.id === a.boq_item_id) ? <span className="text-slate-400"> — {rawItems.find(i => i.id === a.boq_item_id).description}</span> : ""}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {reviewItems.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-700 mb-1.5">Engineer Review Required</div>
+                  <div className="space-y-2">
+                    {reviewItems.map(r => (
+                      <div key={r.id} className="border rounded-lg p-2.5 text-xs flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-slate-700">{r.reason}{r.boq_item_id && rawItems.find(i => i.id === r.boq_item_id) ? <span className="text-slate-400"> — {rawItems.find(i => i.id === r.boq_item_id).description}</span> : ""}</div>
+                        </div>
+                        {r.status === "open" ? (
+                          <button onClick={() => setReviewItemStatus(r.id, "resolved")} className="shrink-0 text-[11px] font-semibold bg-slate-900 text-white px-2.5 py-1 rounded-lg">Mark Resolved</button>
+                        ) : <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">resolved</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {duplicateGroups.length > 0 && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-4 text-xs text-rose-700">
           <div className="font-semibold mb-1">Duplicate drawing uploads detected — excluded from this BOQ to avoid double-counting</div>
@@ -4025,17 +4823,29 @@ function BoqTab({ project }) {
         </div>
       )}
 
+      {/* Simple List View (2026-08-10 redesign): the former two-panel
+          Group-By dashboard was removed per explicit user request ("remove
+          the option dashboard view no required") -- this flat/grouped
+          Line/System/Item/Location/Qty/Unit/Status/Remarks table, matching
+          a classic QS/estimator takeoff, is now the only BOQ view. Its own
+          BOQ Type and Group By controls (below) replace what the dashboard
+          used to offer, per "shift it to simple list view". */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div>
+          <label className="text-[10px] text-slate-500 uppercase font-semibold block mb-0.5">BOQ Type</label>
+          <select className="border rounded-lg px-3 py-1.5 text-sm" value={boqListType} onChange={e=>setBoqListType(e.target.value)}>
+            <option value="designed">Designed Engineering BOQ (complete system)</option>
+            <option value="takeoff">Takeoff BOQ (drawing quantities only)</option>
+          </select>
+        </div>
+        <div>
           <label className="text-[10px] text-slate-500 uppercase font-semibold block mb-0.5">Group By</label>
-          <select className="border rounded-lg px-3 py-1.5 text-sm" value={groupBy} onChange={e=>setGroupBy(e.target.value)}>
+          <select className="border rounded-lg px-3 py-1.5 text-sm" value={effectiveGroupBy} onChange={e=>setGroupBy(e.target.value)}>
             <option value="system">System BOQ</option>
-            <option value="floor">Floor BOQ</option>
-            <option value="project">Item BOQ (single flat list)</option>
             <option value="category">Category (ELV / Electrical / HVAC / etc.)</option>
-            <option value="zone">Zone</option>
-            <option value="room">Room</option>
-            <option value="drawing">Drawing</option>
+            <option value="floor">Floor BOQ</option>
+            <option value="building">Building / Villa / Tower</option>
+            <option value="project">Flat List (single continuous BOQ)</option>
           </select>
         </div>
         <div>
@@ -4062,168 +4872,95 @@ function BoqTab({ project }) {
         </div>
       )}
 
-      {bucketEntries.length === 0 && <div className="border-2 border-dashed rounded-xl p-10 text-center text-slate-400">No BOQ items yet. Analyze a drawing or design a system to generate one.</div>}
-
-      {bucketEntries.length > 0 && (
-        // Two-panel "BOQ - Group by <groupBy>" layout (2026-08-09 redesign,
-        // matched against the reference dashboard): left is a real data
-        // table of the current buckets (not just a button list) plus a
-        // "BOQ Summary by System" donut chart; right is the selected
-        // bucket's "System Overview" card + stat tiles + a single item
-        // table with items sorted active-first (via classifyComponentType),
-        // instead of 3 separately-labeled Active/Passive/Other tables.
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4">
-          <div className="space-y-4 self-start">
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="px-3 py-2 bg-slate-50 border-b text-xs font-semibold text-slate-500 uppercase">
-                {GROUP_BY_LABEL(groupBy)} ({bucketEntries.length})
-              </div>
-              <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase sticky top-0">
+      {simpleBoqLines.length === 0 ? (
+        <div className="border-2 border-dashed rounded-xl p-10 text-center text-slate-400">No BOQ items yet. Analyze a drawing or design a system to generate one.</div>
+      ) : (
+        <React.Fragment>
+          {groupedSimpleBoq.map((group) => {
+            // Flat mode ("project"): the one group's lines get real
+            // pagination (SIMPLE_BOQ_PAGE_SIZE/page). Grouped modes render
+            // each group's full line set under its own subheader instead --
+            // groups are bounded by system/floor/building, not the whole
+            // project, so pagination isn't needed there.
+            const isFlat = group.groupName === null;
+            const pageLines = isFlat ? group.lines.slice(simpleBoqPage * SIMPLE_BOQ_PAGE_SIZE, simpleBoqPage * SIMPLE_BOQ_PAGE_SIZE + SIMPLE_BOQ_PAGE_SIZE) : group.lines;
+            return (
+              <div key={group.groupName ?? "flat"} className="qtr-boq-table bg-white border rounded-xl overflow-x-auto mb-4">
+                {!isFlat && (
+                  <div className="px-3 py-2 bg-slate-50 border-b flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">{group.groupName}</span>
+                    <span className="text-[11px] text-slate-500">{group.lines.length} line{group.lines.length===1?"":"s"} · Total: {simpleBoqSubtotalsByUnit(group.lines) || "—"}</span>
+                  </div>
+                )}
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
                     <tr>
-                      <th className="text-left px-3 py-2">{GROUP_BY_LABEL(groupBy)}</th>
-                      <th className="text-right px-3 py-2">Items</th>
+                      <th className="text-right px-3 py-2">Line</th>
+                      <th className="text-left px-3 py-2">System</th>
+                      <th className="text-left px-3 py-2">Item Description</th>
+                      <th className="text-left px-3 py-2">Location</th>
                       <th className="text-right px-3 py-2">Qty</th>
-                      <th className="text-left px-3 py-2">Conf.</th>
-                      <th className="text-center px-3 py-2">Review</th>
-                      <th className="text-center px-3 py-2"></th>
+                      <th className="text-left px-3 py-2">Unit</th>
+                      <th className="text-left px-3 py-2">Status</th>
+                      <th className="text-left px-3 py-2">Remarks</th>
+                      <th className="text-center px-3 py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {bucketEntries.map(([bucketName, bucketRows]) => {
-                      const conf = bucketRows.filter(r=>r.avgConfidence!=null);
-                      const avgConf = conf.length ? Math.round(conf.reduce((s,r)=>s+r.avgConfidence,0)/conf.length) : null;
-                      const needsReview = bucketRows.filter(r=>r.reviewBucket==="review_required"||r.reviewBucket==="engineer_review").length;
-                      const totalQty = bucketRows.reduce((s,r)=> s + (r.quantityIsTbd || r.totalQuantity==null ? 0 : r.totalQuantity), 0);
-                      const isSel = selectedBucket === bucketName;
-                      return (
-                        <tr key={bucketName} onClick={()=>setSelectedBucket(bucketName)}
-                          className={`cursor-pointer hover:bg-slate-50 ${isSel ? "bg-blue-50" : ""}`}>
-                          <td className={`px-3 py-2 font-semibold ${isSel ? "text-blue-700" : "text-slate-700"}`}>{bucketName}</td>
-                          <td className="px-3 py-2 text-right">{bucketRows.length}</td>
-                          <td className="px-3 py-2 text-right">{totalQty}</td>
-                          <td className="px-3 py-2">
-                            {avgConf != null ? (
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-10 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width:`${avgConf}%`}}></div></div>
-                                <span className="text-slate-500">{avgConf}%</span>
-                              </div>
-                            ) : "—"}
-                          </td>
-                          <td className="px-3 py-2 text-center">{needsReview > 0 ? <span className="text-amber-600 font-semibold">{needsReview}</span> : "—"}</td>
-                          <td className="px-3 py-2 text-center">
-                            <button onClick={(e)=>{e.stopPropagation();setSelectedBucket(bucketName);}} className="text-blue-600 text-[11px] font-semibold hover:underline">View →</button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {pageLines.map(l => (
+                      <tr key={l.key} className={focusedItemKey === l.rowKey ? "bg-blue-50" : ""}>
+                        <td className="px-3 py-2 text-right text-slate-400">{l.line}</td>
+                        <td className="px-3 py-2 font-medium">{l.system}</td>
+                        <td className="px-3 py-2">{l.description}</td>
+                        <td className="px-3 py-2 text-slate-600">{l.location}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{l.qty}</td>
+                        <td className="px-3 py-2 text-slate-500">{l.unit}</td>
+                        <td className="px-3 py-2">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${l.status === "Confirmed" ? "bg-emerald-100 text-emerald-700" : l.status === "Engineered" ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>{l.status}</span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-500 text-xs">{l.remarks}</td>
+                        <td className="px-3 py-2 text-center">
+                          <button onClick={()=>{ const next = focusedItemKey === l.rowKey ? null : l.rowKey; setFocusedItemKey(next); setActiveSystemTab("breakdown"); }} className={`text-xs hover:underline ${focusedItemKey === l.rowKey ? "text-blue-700 font-semibold" : "text-blue-600"}`} title="View this item's breakdown/evidence/notes below">
+                            👁 {focusedItemKey === l.rowKey ? "Focused" : "View"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                   <tfoot>
                     <tr className="font-semibold bg-slate-50 border-t">
-                      <td className="px-3 py-2">Total</td>
-                      <td className="px-3 py-2 text-right">{consolidated.length}</td>
-                      <td className="px-3 py-2 text-right">{bucketEntries.reduce((s,[,rows])=>s+rows.reduce((s2,r)=>s2+(r.quantityIsTbd||r.totalQuantity==null?0:r.totalQuantity),0),0)}</td>
-                      <td colSpan={3}></td>
+                      <td className="px-3 py-2" colSpan={4}>Total ({group.lines.length} line{group.lines.length===1?"":"s"})</td>
+                      <td className="px-3 py-2 text-right">{simpleBoqSubtotalsByUnit(group.lines) || "—"}</td>
+                      <td colSpan={4}></td>
                     </tr>
                   </tfoot>
                 </table>
+                {isFlat && group.lines.length > SIMPLE_BOQ_PAGE_SIZE && (
+                  <div className="flex items-center justify-between px-3 py-2 border-t text-xs text-slate-500">
+                    <span>Showing {simpleBoqPage * SIMPLE_BOQ_PAGE_SIZE + 1} to {Math.min(simpleBoqPage * SIMPLE_BOQ_PAGE_SIZE + SIMPLE_BOQ_PAGE_SIZE, group.lines.length)} of {group.lines.length} line{group.lines.length===1?"":"s"}</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>setSimpleBoqPage(p=>Math.max(0,p-1))} disabled={simpleBoqPage===0} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
+                      <span className="font-semibold text-slate-700">{simpleBoqPage+1}</span>
+                      <button onClick={()=>setSimpleBoqPage(p=>Math.min(Math.ceil(group.lines.length / SIMPLE_BOQ_PAGE_SIZE)-1,p+1))} disabled={simpleBoqPage>=Math.ceil(group.lines.length / SIMPLE_BOQ_PAGE_SIZE)-1} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
+                    </div>
+                  </div>
+                )}
               </div>
+            );
+          })}
+          {/* Grand total across every group -- only shown when actually
+              grouped (the flat/project view's single table footer above is
+              already the grand total). */}
+          {groupedSimpleBoq.length > 1 && (
+            <div className="bg-slate-900 text-white rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between text-sm">
+              <span className="font-semibold">Project Total</span>
+              <span>{simpleBoqLines.length} line{simpleBoqLines.length===1?"":"s"} · {simpleBoqSubtotalsByUnit(simpleBoqLines) || "—"}</span>
             </div>
-
-            {systemDonut.slices.length > 0 && (
-              <div className="bg-white border rounded-xl p-4">
-                <div className="text-xs font-semibold text-slate-500 uppercase mb-3">BOQ Summary by System</div>
-                <div className="flex items-center gap-4">
-                  <svg viewBox="0 0 42 42" className="w-28 h-28 flex-shrink-0" style={{ transform: "rotate(-90deg)" }}>
-                    <circle cx="21" cy="21" r="15.9155" fill="transparent" stroke="#e2e8f0" strokeWidth="6"></circle>
-                    {systemDonut.slices.map(s => (
-                      <circle key={s.cat} cx="21" cy="21" r="15.9155" fill="transparent" stroke={s.color} strokeWidth="6"
-                        strokeDasharray={`${s.pct} ${100 - s.pct}`} strokeDashoffset={-s.start} />
-                    ))}
-                  </svg>
-                  <div className="flex-1 space-y-1 max-h-32 overflow-y-auto">
-                    {systemDonut.slices.map(s => (
-                      <div key={s.cat} className="flex items-center justify-between text-[11px]">
-                        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-full inline-block" style={{background:s.color}}></span>{SYSTEM_LABEL(s.cat)}</span>
-                        <span className="text-slate-500">{s.qty} ({s.pct.toFixed(0)}%)</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div>
-            {bucketEntries.filter(([name]) => name === selectedBucket).map(([bucketName, bucketRows]) => {
-              const sorted = [...bucketRows].sort((a,b) => {
-                const order = { active: 0, passive: 1, other: 2 };
-                return order[classifyComponentType(a)] - order[classifyComponentType(b)];
-              });
-              const conf = bucketRows.filter(r=>r.avgConfidence!=null);
-              const avgConf = conf.length ? Math.round(conf.reduce((s,r)=>s+r.avgConfidence,0)/conf.length) : null;
-              const totalQty = bucketRows.reduce((s,r)=> s + (r.quantityIsTbd || r.totalQuantity==null ? 0 : r.totalQuantity), 0);
-              const needsReview = bucketRows.filter(r=>r.reviewBucket==="review_required"||r.reviewBucket==="engineer_review").length;
-              const unitList = [...new Set(bucketRows.map(r=>r.unit).filter(Boolean))];
-              const pageCount = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
-              const clampedPage = Math.min(itemPage, pageCount - 1);
-              const pageStart = clampedPage * ITEMS_PER_PAGE;
-              const pageRows = sorted.slice(pageStart, pageStart + ITEMS_PER_PAGE);
-              return (
-                <div key={bucketName}>
-                  <div className="bg-white border rounded-xl p-4 mb-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-slate-800 text-lg">{bucketName} System Overview</h3>
-                      <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">{bucketRows.length} items</span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-                      {[
-                        ["Total Quantity", totalQty],
-                        ["Units", unitList.join(" / ") || "—"],
-                        ["Avg. Confidence", avgConf != null ? `${avgConf}%` : "—"],
-                        ["Review Required", needsReview],
-                      ].map(([label, val]) => (
-                        <div key={label} className="bg-slate-50 rounded-lg py-2">
-                          <div className={`text-base font-bold ${label==="Review Required" && needsReview>0 ? "text-amber-600" : "text-slate-800"}`}>{val}</div>
-                          <div className="text-[10px] text-slate-500 uppercase">{label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="qtr-boq-table bg-white border rounded-xl overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                        <tr>
-                          <th className="text-left px-3 py-2">Item</th>
-                          <th className="text-left px-3 py-2">Specification</th>
-                          <th className="text-left px-3 py-2">Unit</th>
-                          <th className="text-right px-3 py-2">Total Qty</th>
-                          <th className="text-center px-3 py-2">Status</th>
-                          <th className="text-center px-3 py-2">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {pageRows.map((row) => <ConsolidatedRow key={row.key + bucketName} row={row} isFocused={focusedItemKey === row.key} onFocus={setFocusedItemKey} />)}
-                      </tbody>
-                    </table>
-                    <div className="flex items-center justify-between px-3 py-2 border-t text-xs text-slate-500">
-                      <span>Showing {sorted.length === 0 ? 0 : pageStart + 1} to {Math.min(pageStart + ITEMS_PER_PAGE, sorted.length)} of {sorted.length} item{sorted.length===1?"":"s"}</span>
-                      {pageCount > 1 && (
-                        <div className="flex items-center gap-2">
-                          <button onClick={()=>setItemPage(p=>Math.max(0,p-1))} disabled={clampedPage===0} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
-                          <span className="font-semibold text-slate-700">{clampedPage+1}</span>
-                          <button onClick={()=>setItemPage(p=>Math.min(pageCount-1,p+1))} disabled={clampedPage>=pageCount-1} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <SystemDetailPanel bucketName={bucketName} bucketRows={sorted} focusedKey={focusedItemKey} setFocusedKey={setFocusedItemKey} activeTab={activeSystemTab} setActiveTab={setActiveSystemTab} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          )}
+          {focusedItemKey && rowsByKey[focusedItemKey] && (
+            <SystemDetailPanel bucketName={null} bucketRows={[rowsByKey[focusedItemKey]]} focusedKey={focusedItemKey} setFocusedKey={setFocusedItemKey} activeTab={activeSystemTab} setActiveTab={setActiveSystemTab} />
+          )}
+        </React.Fragment>
       )}
       </React.Fragment>
       )}
@@ -4430,6 +5167,157 @@ function EngineeringBoqTab({ project }) {
 }
 
 // ---------------------------------------------------------------------------
+// Specification tab (2026-08-10): "a specification page next to boq which
+// gives all the items and complete BOQ project specification as per the
+// rule and regulation based on the selected location." Combines the same
+// consolidated BOQ engine used by BoqTab with the same location-matched
+// compliance_rules ComplianceTab already queries -- no new AI call, no new
+// schema; this is a presentation layer joining two data sources that both
+// already exist, grouped by system so each system's items sit directly
+// under the regulations that apply to it.
+// ---------------------------------------------------------------------------
+function SpecificationTab({ project }) {
+  const [rawItems, setRawItems] = useState([]);
+  const [drawingRows, setDrawingRows] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { load(); }, [project.id]);
+  async function load() {
+    setLoading(true); setError(null);
+    try {
+      const [{ data: items, error: iErr }, { data: dr, error: dErr }, { data: cr, error: cErr }] = await Promise.all([
+        sb.from("boq_items").select("*").eq("project_id", project.id),
+        sb.from("drawings").select("id, file_name, file_hash, uploaded_at").eq("project_id", project.id),
+        sb.from("compliance_rules").select("*").eq("country", project.country).ilike("city", project.city),
+      ]);
+      if (iErr) throw iErr; if (dErr) throw dErr; if (cErr) throw cErr;
+      setRawItems(items || []); setDrawingRows(dr || []); setRules(cr || []);
+    } catch (e) {
+      console.error("SpecificationTab.load failed:", e);
+      setError(e.message || "Could not load the project specification.");
+    } finally { setLoading(false); }
+  }
+
+  const drawingsById = useMemo(() => { const m = {}; drawingRows.forEach(d => m[d.id] = d); return m; }, [drawingRows]);
+  const { excludeDrawingIds } = useMemo(() => detectDuplicateDrawings(drawingRows), [drawingRows]);
+  const consolidated = useMemo(() => {
+    const latest = filterLatestRevisions(rawItems).filter(it => !it.drawing_id || !excludeDrawingIds.has(it.drawing_id));
+    return consolidateBoqItems(latest, drawingsById);
+  }, [rawItems, excludeDrawingIds, drawingsById]);
+
+  // Group the consolidated BOQ by system, in the same canonical label order
+  // used everywhere else (SYSTEM_LABEL), and pair each group with whichever
+  // seeded compliance rules apply to that same system_category.
+  const bySystem = useMemo(() => {
+    const g = {};
+    consolidated.forEach(row => { (g[row.systemCategory] = g[row.systemCategory] || []).push(row); });
+    return Object.entries(g)
+      .map(([cat, rows]) => ({
+        cat, label: SYSTEM_LABEL(cat),
+        rows: [...rows].sort((a,b)=>a.description.localeCompare(b.description)),
+        rules: rules.filter(r => r.system_category === cat),
+      }))
+      .sort((a,b) => a.label.localeCompare(b.label));
+  }, [consolidated, rules]);
+
+  // Rules whose system_category has no matching BOQ item group yet (e.g. a
+  // seeded regulation for a system this project hasn't taken off/designed
+  // yet) -- shown separately rather than silently dropped.
+  const generalRules = useMemo(() => rules.filter(r => !bySystem.some(g => g.cat === r.system_category)), [rules, bySystem]);
+
+  return (
+    <div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4 text-xs text-amber-800">
+        <strong>Project Specification — AI-generated, for informational and preliminary planning purposes only.</strong> Combines this project's BOQ items with the applicable authority requirements seeded for <strong>{project.city}, {project.country}</strong>. It is not a substitute for an independent code-compliance review by a licensed engineer, and the regulation library below is a reference starting set, not an exhaustive legal document.
+      </div>
+      {error ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+          <div className="text-sm text-rose-700">{error}</div>
+          <button onClick={load} className="text-xs font-semibold bg-rose-600 text-white px-3 py-1.5 rounded-lg hover:bg-rose-700">Retry</button>
+        </div>
+      ) : loading ? <div className="text-slate-400 text-sm py-8 text-center">Loading…</div> : consolidated.length === 0 ? (
+        <div className="border-2 border-dashed rounded-xl p-10 text-center text-slate-400">No BOQ items yet. Analyze a drawing or design a system to generate one.</div>
+      ) : (
+        <div className="space-y-5">
+          {rules.length === 0 && (
+            <div className="text-xs text-slate-400 italic">No seeded compliance rules for this location yet — items are still listed below without a matched regulation. This reference set currently covers Dubai, Abu Dhabi (UAE) and Riyadh (KSA) as a starting library, extendable to any jurisdiction.</div>
+          )}
+          {bySystem.map(group => (
+            <div key={group.cat} className="bg-white border rounded-xl overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800">{group.label}</h3>
+                <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">{group.rows.length} item{group.rows.length===1?"":"s"}</span>
+              </div>
+              {group.rules.length > 0 && (
+                <div className="px-4 pt-3 space-y-2">
+                  {group.rules.map(r => (
+                    <div key={r.id} className="bg-slate-50 border rounded-lg p-3 text-xs">
+                      <div className="font-semibold text-slate-700">{r.authority}</div>
+                      <div className="text-slate-600 mt-0.5">{r.requirement}</div>
+                      <div className="text-slate-500 mt-1.5 space-y-0.5">
+                        {r.required_approval && <div><strong>Approval:</strong> {r.required_approval}</div>}
+                        {r.required_certificate && <div><strong>Certificate:</strong> {r.required_certificate}</div>}
+                        {r.testing_requirement && <div><strong>Testing:</strong> {r.testing_requirement}</div>}
+                        {r.required_documents && <div><strong>Documents required:</strong> {r.required_documents}</div>}
+                        {r.approval_process && <div><strong>Approval process:</strong> {r.approval_process}</div>}
+                        {r.reference_code && <div className="text-slate-400"><strong>Reference:</strong> {r.reference_code}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Item specifications -- deliberately NOT a BOQ-style Qty/Unit
+                  table (per explicit user request: "not required the qty to
+                  show make properly as a item specifications"). Quantities
+                  already live in the BOQ tab; this page reads as a written
+                  technical specification per item -- description, spec
+                  text, manufacturer/model, testing & commissioning -- the
+                  same fields an engineer would expect in a spec document. */}
+              <div className="divide-y">
+                {group.rows.map(row => {
+                  const anyRow = row.rawItems[0];
+                  const testingNote = [anyRow?.testing_requirements, anyRow?.commissioning_requirements].filter(Boolean).join(" · ");
+                  return (
+                    <div key={row.key} className="px-4 py-3">
+                      <div className="font-semibold text-slate-800 text-sm">{row.description}</div>
+                      {(row.manufacturer || row.model_number) && (
+                        <div className="text-xs text-slate-500 mt-0.5">{[row.manufacturer, row.model_number].filter(Boolean).join(" — ")}</div>
+                      )}
+                      <div className="text-sm text-slate-600 mt-1.5">
+                        {row.technical_specification || <span className="text-slate-400 italic">No detailed specification recorded for this item yet.</span>}
+                      </div>
+                      {testingNote && (
+                        <div className="text-xs text-slate-500 mt-1.5"><span className="font-semibold text-slate-600">Testing &amp; Commissioning: </span>{testingNote}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {generalRules.length > 0 && (
+            <div className="bg-white border rounded-xl p-4">
+              <h3 className="font-semibold text-slate-800 mb-2">Other applicable regulations (no matching BOQ system yet)</h3>
+              <div className="grid md:grid-cols-2 gap-3">
+                {generalRules.map(r => (
+                  <div key={r.id} className="bg-slate-50 border rounded-lg p-3 text-xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-900 text-white px-2 py-0.5 rounded-full">{SYSTEM_LABEL(r.system_category)}</span>
+                    <div className="font-semibold text-slate-700 mt-1.5">{r.authority}</div>
+                    <div className="text-slate-600 mt-0.5">{r.requirement}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Compliance tab
 // ---------------------------------------------------------------------------
 function ComplianceTab({ project }) {
@@ -4587,11 +5475,14 @@ function ExportTab({ project }) {
   async function exportExcel(kind) {
     setBusy(true);
     try {
-      const [{ data: items }, { data: dr }, { data: rules }, { data: runs }] = await Promise.all([
+      const [{ data: items }, { data: dr }, { data: rules }, { data: runs }, { data: costOpts }, { data: assumps }, { data: reviewRows }] = await Promise.all([
         sb.from("boq_items").select("*").eq("project_id", project.id),
         sb.from("drawings").select("id, file_name, file_hash, uploaded_at").eq("project_id", project.id),
         sb.from("engineering_rules").select("*"),
         sb.from("analysis_runs").select("*").eq("project_id", project.id).order("created_at"),
+        sb.from("cost_optimizations").select("*").eq("project_id", project.id),
+        sb.from("boq_assumptions").select("*").eq("project_id", project.id),
+        sb.from("boq_review_items").select("*").eq("project_id", project.id),
       ]);
       const drawingsById = {}; (dr||[]).forEach(d => drawingsById[d.id] = d);
       const { excludeDrawingIds, duplicateGroups } = detectDuplicateDrawings(dr || []);
@@ -4631,6 +5522,43 @@ function ExportTab({ project }) {
         ...consolidated.map(r => [r.itemCode, SYSTEM_LABEL(r.systemCategory), r.description, r.technical_specification||"", r.manufacturer||"", r.model_number||"", r.unit, r.quantityIsTbd?"TBD":r.totalQuantity, r.avgConfidence??"", r.reviewBucket, r.countableSourceCount, r.referenceOnlySourceCount, r.discrepancy ? `Physical ${r.discrepancy.physicalTotal} vs schedule ${r.discrepancy.scheduleTotal}` : ""]),
       ], "Consolidated BOQ");
 
+      // 2b. Master BOQ (Full Detail) -- the RFQ-ready, procurement-grade
+      // sheet with every field the Master BOQ Engine tracks (subsystem,
+      // building/villa, floor/zone/room breakdown as text, calculation
+      // basis, optimization status/note, compliance) so nothing is trimmed
+      // for brevity here even though the on-screen table stays simple.
+      addSheet([
+        ...trialRow, [disclaimer], [],
+        ["Item Code","System","Subsystem","Building/Villa","Item Name","Technical Specification","Manufacturer","Model","Floor(s)","Zone(s)","Room(s)","Unit","Total Quantity","Calculation / Quantity Basis","Optimization Status","Optimization Note","Confidence %","Compliance Status","Compliance Notes","Status","Drawing Source(s)","Quantity Discrepancy"],
+        ...consolidated.map(r => {
+          const any = r.rawItems[0];
+          const basisNote = r.rawItems.find(x => x.quantity_basis_notes)?.quantity_basis_notes || "";
+          const optNote = r.rawItems.find(x => x.optimization_note)?.optimization_note || "";
+          return [
+            r.itemCode, SYSTEM_LABEL(r.systemCategory), r.subsystem||"", r.building||"",
+            r.description, r.technical_specification||"", r.manufacturer||"", r.model_number||"",
+            r.floorBreakdown.map(fb=>fb.floor_label).join(", "), r.zoneBreakdown.map(zb=>`${zb.floor_label}/${zb.zone}`).join(", "), r.roomBreakdown.map(rb=>`${rb.floor_label}/${rb.room}`).join(", "),
+            r.unit, r.quantityIsTbd?"TBD":r.totalQuantity, basisNote,
+            r.optimizationStatuses.map(s=>OPTIMIZATION_STATUS_LABEL[s]||s).join(", "), optNote,
+            r.avgConfidence??"", any?.compliance_status||"", any?.compliance_notes||"",
+            r.reviewBucket, [...new Set(r.evidence.map(e=>e.drawing_name))].join(", "),
+            r.discrepancy ? `Physical ${r.discrepancy.physicalTotal} vs schedule ${r.discrepancy.scheduleTotal}` : "",
+          ];
+        }),
+      ], "Master BOQ (Full Detail)");
+
+      // 2c. Simple BOQ -- the flat, continuously-numbered, classic QS/
+      // estimator-format sheet (Line/System/Item/Location/Qty/Unit/Status/
+      // Remarks), built from the exact same buildSimpleBoqLines() helper
+      // that backs the app's "Simple List View" toggle, so the export and
+      // the on-screen table can never drift apart.
+      const simpleLines = buildSimpleBoqLines(consolidated);
+      addSheet([
+        ...trialRow, [disclaimer], [],
+        ["Line","System","Item Description","Location","Qty","Unit","Status","Remarks"],
+        ...simpleLines.map(l => [l.line, l.system, l.description, l.location, l.qty, l.unit, l.status, l.remarks]),
+      ], "Simple BOQ");
+
       // 3. System BOQ -- rollup per system, matching section 7/8's summary view.
       const bySystem = {};
       consolidated.forEach(r => { bySystem[r.systemCategory] = bySystem[r.systemCategory] || []; bySystem[r.systemCategory].push(r); });
@@ -4644,11 +5572,17 @@ function ExportTab({ project }) {
         }),
       ], "System BOQ");
 
-      // 4. Floor Breakdown -- flattened, must sum back to Consolidated BOQ's Total Quantity per item.
+      // 4. Floor Breakdown -- flattened, must sum back to Consolidated BOQ's
+      // Total Quantity per item. "Floor" is the normalized canonical name
+      // (BF-1/GF/MF/FF/SF/TF/4F.../RF/PH, per the mandatory floor-
+      // normalization spec); "Source Label(s)" preserves every distinct raw
+      // drawing label that was merged into that canonical floor, so nothing
+      // is lost even though rows for e.g. "2nd Floor" and "Second Floor" on
+      // different drawings now correctly combine into one SF row here.
       addSheet([
         ...trialRow, [disclaimer], [],
-        ["Item Code","Item Name","Floor","Quantity","Unit"],
-        ...consolidated.flatMap(r => r.floorBreakdown.map(fb => [r.itemCode, r.description, fb.floor_label, fb.quantity, r.unit])),
+        ["Item Code","Item Name","Floor","Source Label(s)","Quantity","Unit"],
+        ...consolidated.flatMap(r => r.floorBreakdown.map(fb => [r.itemCode, r.description, fb.floor_label, (fb.source_floor_labels||[]).join(", "), fb.quantity, r.unit])),
       ], "Floor Breakdown");
 
       // 5. Zone Breakdown
@@ -4686,10 +5620,14 @@ function ExportTab({ project }) {
       // 10. Drawing Evidence -- every source detection, individually traceable,
       // now including the quantity-source classification and whether it
       // actually counted toward the total (section 15's "Quantity Basis").
+      // "Floor (raw)" keeps the original per-drawing text unchanged;
+      // "Floor (normalized)" adds the canonical identity alongside it so
+      // this sheet stays consistent with every other floor-ordered surface
+      // without discarding the original drawing label.
       addSheet([
         ...trialRow, [disclaimer], [],
-        ["Item Code","Item Name","Drawing","Page","Floor","Zone","Quantity","Source Type","Counted Toward Total?","Confidence %","Location","Basis Notes"],
-        ...consolidated.flatMap(r => r.evidence.map(ev => [r.itemCode, r.description, ev.drawing_name, ev.page||"", ev.floor_label||"", ev.zone||"", ev.quantity, ev.quantitySourceLabel, ev.countedTowardTotal?"Yes":"No", ev.confidence_score??"", ev.location||"", ev.quantityBasisNotes||""])),
+        ["Item Code","Item Name","Drawing","Page","Floor (raw)","Floor (normalized)","Zone","Quantity","Source Type","Counted Toward Total?","Confidence %","Location","Basis Notes"],
+        ...consolidated.flatMap(r => r.evidence.map(ev => [r.itemCode, r.description, ev.drawing_name, ev.page||"", ev.floor_label||"", ev.normalizedFloorName||"", ev.zone||"", ev.quantity, ev.quantitySourceLabel, ev.countedTowardTotal?"Yes":"No", ev.confidence_score??"", ev.location||"", ev.quantityBasisNotes||""])),
       ], "Drawing Evidence");
 
       // 11. Revision History -- from analysis_runs directly (not consolidated -- this IS the audit trail of every revision, including superseded ones).
@@ -4698,6 +5636,31 @@ function ExportTab({ project }) {
         ["Drawing","Revision","Status","Change Reason","Approval Status","Created"],
         ...(runs||[]).map(r => [drawingsById[r.drawing_id]?.file_name || (r.drawing_id ? r.drawing_id : "System Design"), r.revision_number, r.status, r.change_reason||"", r.approval_status, new Date(r.created_at).toISOString()]),
       ], "Revision History");
+
+      // 12. Cost Optimizations -- AI-proposed, never silently applied; status
+      // shows whether the customer/engineer has accepted or rejected each one.
+      const itemDescByIdX = {}; (items||[]).forEach(i => itemDescByIdX[i.id] = i.description);
+      addSheet([
+        ...trialRow, [disclaimer], [],
+        ["Title","Related Item","Original Approach","Optimized Approach","Estimated Savings","Status"],
+        ...(costOpts||[]).map(o => [o.title, o.boq_item_id ? (itemDescByIdX[o.boq_item_id]||"") : "", o.original_approach||"", o.optimized_approach||"", o.estimated_savings_note||"", o.status]),
+      ], "Cost Optimizations");
+
+      // 13. Assumptions -- disclosed explicitly rather than buried silently.
+      addSheet([
+        ...trialRow, [disclaimer], [],
+        ["Assumption","Related Item"],
+        ...(assumps||[]).map(a => [a.assumption_text, a.boq_item_id ? (itemDescByIdX[a.boq_item_id]||"") : ""]),
+      ], "Assumptions");
+
+      // 14. Engineer Review Items -- from boq_review_items (project/engine-
+      // level flags), distinct from the per-item "Review Required"/"Engineer
+      // Review" confidence-bucket sheets above.
+      addSheet([
+        ...trialRow, [disclaimer], [],
+        ["Reason","Related Item","Status"],
+        ...(reviewRows||[]).map(r => [r.reason, r.boq_item_id ? (itemDescByIdX[r.boq_item_id]||"") : "", r.status]),
+      ], "Engineer Review Items");
 
       XLSX.writeFile(wb, `${project.project_name.replace(/[^a-z0-9]/gi,"_")}_BOQ_${kind}.xlsx`);
     } finally { setBusy(false); }
@@ -5334,6 +6297,19 @@ const QADMIN_CSS = `
 .qadmin .kpi .delta.up{color:var(--success);}
 .qadmin .kpi .delta.down{color:var(--danger);}
 .qadmin .kpi .delta.flat{color:var(--text-dimmer);}
+/* Icon badge for KPI cards (2026-08-10) -- the same "icon badge + label +
+   value" info-card language requested app-wide, ported to the admin portal's
+   own dark-glass design tokens (rgba tints of --primary/--ai/--success/
+   --warning) rather than the Tailwind bg-*-100/text-*-700 pairs the rest of
+   the app uses, since this view is intentionally its own separate CSS
+   namespace (see the 2026-07-30 admin-portal-port note on why .qadmin has
+   its own custom properties instead of reusing :root). */
+.qadmin .kpi-icon{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+.qadmin .kpi-icon svg{width:13px;height:13px;}
+.qadmin .kpi-icon.blue{background:var(--primary-soft);color:var(--primary);}
+.qadmin .kpi-icon.ai{background:var(--ai-soft);color:var(--ai);}
+.qadmin .kpi-icon.success{background:rgba(34,197,94,0.14);color:var(--success);}
+.qadmin .kpi-icon.warning{background:rgba(245,158,11,0.14);color:var(--warning);}
 .qadmin .section-label{font-size:12px;font-weight:700;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.07em;margin:26px 0 12px;}
 .qadmin .section-label:first-child{margin-top:0;}
 .qadmin .advisor{background:linear-gradient(135deg, rgba(0,229,255,0.08), rgba(79,124,255,0.06));border:1px solid rgba(0,229,255,0.25);border-radius:16px;padding:20px 22px;margin-bottom:28px;}
@@ -5404,6 +6380,11 @@ const QADMIN_CSS = `
 .qadmin .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:9px;font-weight:600;font-size:13px;border:1px solid var(--border);cursor:pointer;background:rgba(255,255,255,0.02);color:var(--text);}
 .qadmin .btn:disabled{opacity:0.5;cursor:not-allowed;}
 .qadmin .btn-primary{background:var(--grad);color:#04101f;border:none;}
+.qadmin .btn-sm{padding:7px 13px;font-size:12px;border-radius:8px;}
+.qadmin input[type=number],.qadmin input[type=text]{background:rgba(255,255,255,0.02);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 11px;font-size:12.5px;font-family:inherit;outline:none;}
+.qadmin input[type=number]{width:100px;}
+.qadmin input[type=number]:focus,.qadmin input[type=text]:focus{border-color:var(--primary);}
+.qadmin input[type=number]::placeholder,.qadmin input[type=text]::placeholder{color:var(--text-dimmer);}
 .qadmin .status-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px;}
 .qadmin .status-chip{flex:1;min-width:140px;background:rgba(255,255,255,0.02);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;text-align:center;}
 .qadmin .status-chip .n{font-size:19px;font-weight:800;}
@@ -5677,7 +6658,13 @@ function AdminPortal({ onBack }) {
             {activeView === "customers" && (
               <QCustomersView companies={companies} perCompanyById={perCompanyById} trialByCompanyId={trialByCompanyId}
                 selectedId={selectedCompanyId} onSelect={setSelectedCompanyId}
-                payments={reportsData?.payments || []} />
+                payments={reportsData?.payments || []}
+                onQuotaChanged={async () => {
+                  try {
+                    const res = await callAdminAnalytics("list_companies", {});
+                    setCompanies(res.companies || []);
+                  } catch (e) { /* non-fatal -- the success/error message already shown by AdminQuotaControls covers this */ }
+                }} />
             )}
             {activeView === "projects" && (
               <QProjectsView perProject={overview?.per_project || []} companyNameById={companyNameById} />
@@ -5791,12 +6778,18 @@ function QExecView({ overview, trial, systemStatus, reportsData, companies, perC
         </div>
       </div>
 
+      {/* 2026-08-10: the first admin-side application of the new "Project
+          Information" icon-badge card language (also applied to the
+          end-user Project Overview tab this same pass) -- proves the
+          pattern out across both surfaces the user asked for, starting with
+          the top-of-page Revenue row rather than restyling all 16 KPI cards
+          + both charts in one pass; extending it further is a follow-up. */}
       <div className="section-label" style={{ marginTop: 0 }}>Revenue (this month)</div>
       <div className="kpi-row">
-        <div className="card kpi"><div className="lbl">Total Revenue</div><div className="big">{qMoney(o.total_revenue_cents_this_month)}</div><div className="delta flat">subscription + wallet top-ups</div></div>
-        <div className="card kpi"><div className="lbl">MRR</div><div className="big">{qMoney(o.mrr_cents)}</div><div className="delta flat">recurring subscriptions</div></div>
-        <div className="card kpi"><div className="lbl">ARR Projection</div><div className="big">{qMoney((o.mrr_cents || 0) * 12)}</div><div className="delta flat">based on current MRR</div></div>
-        <div className="card kpi"><div className="lbl">Wallet Top-Ups</div><div className="big">{qMoney(o.wallet_revenue_cents_this_month)}</div><div className="delta flat">prepaid AI credit purchases</div></div>
+        <div className="card kpi"><div className="lbl"><span className="kpi-icon blue"><InfoIcon name="target" /></span>Total Revenue</div><div className="big">{qMoney(o.total_revenue_cents_this_month)}</div><div className="delta flat">subscription + wallet top-ups</div></div>
+        <div className="card kpi"><div className="lbl"><span className="kpi-icon ai"><InfoIcon name="layers" /></span>MRR</div><div className="big">{qMoney(o.mrr_cents)}</div><div className="delta flat">recurring subscriptions</div></div>
+        <div className="card kpi"><div className="lbl"><span className="kpi-icon success"><InfoIcon name="status" /></span>ARR Projection</div><div className="big">{qMoney((o.mrr_cents || 0) * 12)}</div><div className="delta flat">based on current MRR</div></div>
+        <div className="card kpi"><div className="lbl"><span className="kpi-icon warning"><InfoIcon name="shield" /></span>Wallet Top-Ups</div><div className="big">{qMoney(o.wallet_revenue_cents_this_month)}</div><div className="delta flat">prepaid AI credit purchases</div></div>
       </div>
 
       <div className="section-label">Customers</div>
@@ -5870,7 +6863,116 @@ function QExecView({ overview, trial, systemStatus, reportsData, companies, perC
   );
 }
 
-function QCustomersView({ companies, perCompanyById, trialByCompanyId, selectedId, onSelect, payments }) {
+// Platform-admin-only testing/support tool (2026-08-10): lets an admin grant
+// one specific company extra AI-processed pages on top of their plan's
+// normal max_drawing_pages, or push out that company's trial end date --
+// WITHOUT touching plans.max_drawing_pages/trial_duration_days, so every
+// other customer keeps getting exactly the standard rule (e.g. the 30-page
+// trial default). Every change is backed by admin-analytics' grant_bonus_pages
+// / extend_trial actions (each writes an admin_quota_adjustments audit row)
+// and the company object here (from list_companies) already carries
+// bonus_drawing_pages + plan_max_drawing_pages, so no extra fetch is needed
+// just to show "plan default + bonus = effective limit".
+function AdminQuotaControls({ company, onChanged }) {
+  const [bonusInput, setBonusInput] = useState("20");
+  const [trialDaysInput, setTrialDaysInput] = useState("7");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  useEffect(() => {
+    setMsg(null);
+    setHistory([]);
+    setHistoryLoaded(false);
+    if (company?.id) loadHistory(company.id);
+  }, [company?.id]);
+
+  async function loadHistory(companyId) {
+    try {
+      const res = await callAdminAnalytics("list_quota_adjustments", { company_id: companyId });
+      setHistory(res.adjustments || []);
+    } catch (e) { /* non-fatal -- history is supplementary, not required for the grant/extend actions to work */ }
+    finally { setHistoryLoaded(true); }
+  }
+
+  async function grantPages() {
+    const n = Number(bonusInput);
+    if (!Number.isFinite(n) || n === 0) { setMsg({ type: "err", text: "Enter a non-zero page count (e.g. 20, or -10 to reduce a previous grant)." }); return; }
+    setBusy("pages"); setMsg(null);
+    try {
+      const res = await callAdminAnalytics("grant_bonus_pages", { company_id: company.id, additional_pages: n, note: note || undefined });
+      setMsg({ type: "ok", text: `Done — ${company.name} now has ${res.bonus_drawing_pages} bonus page(s).` });
+      await loadHistory(company.id);
+      if (onChanged) await onChanged();
+    } catch (e) {
+      setMsg({ type: "err", text: e.message || "Failed to grant bonus pages." });
+    } finally { setBusy(""); }
+  }
+
+  async function extendTrial() {
+    const n = Number(trialDaysInput);
+    if (!Number.isFinite(n) || n <= 0) { setMsg({ type: "err", text: "Enter a positive number of days." }); return; }
+    setBusy("trial"); setMsg(null);
+    try {
+      const res = await callAdminAnalytics("extend_trial", { company_id: company.id, additional_days: n, note: note || undefined });
+      setMsg({ type: "ok", text: `Done — trial now ends ${new Date(res.trial_end_date).toLocaleString()}.` });
+      await loadHistory(company.id);
+      if (onChanged) await onChanged();
+    } catch (e) {
+      setMsg({ type: "err", text: e.message || "Failed to extend trial." });
+    } finally { setBusy(""); }
+  }
+
+  const planMax = company.plan_max_drawing_pages;
+  const bonus = company.bonus_drawing_pages || 0;
+  const effective = planMax == null ? "Unlimited" : (planMax + bonus);
+
+  return (
+    <div>
+      <div className="section-label" style={{ marginTop: 0 }}>Admin Quota Override (Testing/Support Only)</div>
+      <div className="detail-list" style={{ marginBottom: 14 }}>
+        <div className="detail-item"><span>Standard plan page limit</span><b>{planMax == null ? "Unlimited" : planMax}</b></div>
+        <div className="detail-item"><span>Admin bonus pages (this company only)</span><b>{bonus}</b></div>
+        <div className="detail-item"><span>Effective page limit</span><b>{effective}</b></div>
+        {company.plan === "trial" && (
+          <div className="detail-item"><span>Trial ends</span><b>{company.trial_end_date ? new Date(company.trial_end_date).toLocaleString() : "—"}</b></div>
+        )}
+      </div>
+
+      {msg && <div style={{ fontSize: 12, marginBottom: 10, color: msg.type === "ok" ? "#86efac" : "#fca5a5" }}>{msg.text}</div>}
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+        <input type="number" value={bonusInput} onChange={e => setBonusInput(e.target.value)} placeholder="e.g. 20" />
+        <button className="btn btn-sm" disabled={busy === "pages"} onClick={grantPages}>{busy === "pages" ? "Granting…" : "Grant Bonus Pages"}</button>
+      </div>
+
+      {company.plan === "trial" && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <input type="number" value={trialDaysInput} onChange={e => setTrialDaysInput(e.target.value)} placeholder="days" />
+          <button className="btn btn-sm" disabled={busy === "trial"} onClick={extendTrial}>{busy === "trial" ? "Extending…" : "Extend Trial"}</button>
+        </div>
+      )}
+
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note (e.g. reason for override)" style={{ width: "100%", marginBottom: 12 }} />
+
+      <div className="section-label" style={{ marginTop: 4, marginBottom: 8, fontSize: 10.5 }}>Adjustment History</div>
+      <div className="detail-list">
+        {!historyLoaded ? <div className="detail-item"><span>Loading…</span><b>—</b></div> :
+          history.length === 0 ? <div className="detail-item"><span>No admin quota adjustments yet.</span><b>—</b></div> :
+          history.map(h => (
+            <div className="detail-item" key={h.id}>
+              <span>{(h.created_at || "").replace("T", " ").slice(0, 16)} · {h.adjustment_type === "bonus_pages_granted" ? "Bonus pages" : "Trial extended"}{h.note ? ` — ${h.note}` : ""}</span>
+              <b>{h.adjustment_type === "bonus_pages_granted" ? (h.amount > 0 ? `+${h.amount}` : h.amount) : `+${h.amount}d`}</b>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+function QCustomersView({ companies, perCompanyById, trialByCompanyId, selectedId, onSelect, payments, onQuotaChanged }) {
   const selected = companies.find(c => c.id === selectedId);
   const selectedFin = selected ? perCompanyById[selected.id] : null;
   const selectedTrial = selected ? trialByCompanyId[selected.id] : null;
@@ -5934,6 +7036,9 @@ function QCustomersView({ companies, perCompanyById, trialByCompanyId, selectedI
                   ))}
               </div>
             </div>
+          </div>
+          <div className="detail" style={{ marginTop: 8 }}>
+            <AdminQuotaControls company={selected} onChanged={onQuotaChanged} />
           </div>
         </div>
       )}
